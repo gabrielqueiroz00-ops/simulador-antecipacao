@@ -722,12 +722,15 @@ function friendlyAuthError(code){
     'auth/user-not-found': 'E-mail ou senha inválidos.',
     'auth/wrong-password': 'E-mail ou senha inválidos.',
     'auth/invalid-credential': 'E-mail ou senha inválidos.',
-    'auth/email-already-in-use': 'Já existe uma conta com este e-mail.',
+    'auth/email-already-in-use': 'Já existe uma conta com este e-mail (a conta foi criada, mas talvez o perfil não tenha sido salvo — veja as regras do Firestore).',
     'auth/weak-password': 'A senha precisa ter ao menos 6 caracteres.',
     'auth/network-request-failed': 'Falha de conexão. Verifique sua internet e tente novamente.',
-    'auth/too-many-requests': 'Muitas tentativas. Aguarde um pouco antes de tentar de novo.'
+    'auth/too-many-requests': 'Muitas tentativas. Aguarde um pouco antes de tentar de novo.',
+    'permission-denied': 'Permissão negada ao salvar os dados. As regras de segurança do Firestore ainda não foram publicadas (Firebase Console → Firestore Database → Regras).',
+    'unavailable': 'Não foi possível conectar ao banco de dados agora. Verifique sua internet.'
   };
-  return map[code] || 'Ocorreu um erro inesperado. Tente novamente.';
+  const msg = map[code] || 'Ocorreu um erro inesperado.';
+  return msg + (code ? ' ('+code+')' : '');
 }
 
 /* ============================================================
@@ -842,7 +845,19 @@ document.getElementById('setupBtn').addEventListener('click', async ()=>{
   const btn = document.getElementById('setupBtn');
   btn.disabled = true; btn.textContent = 'Criando…';
   try{
-    const cred = await auth.createUserWithEmailAndPassword(email, senha);
+    let cred;
+    try{
+      cred = await auth.createUserWithEmailAndPassword(email, senha);
+    }catch(createErr){
+      if (createErr.code === 'auth/email-already-in-use'){
+        // Provavelmente uma tentativa anterior já criou a conta no Authentication, mas
+        // falhou ao salvar o perfil no Firestore (ex.: regras de segurança ainda bloqueando
+        // na hora). Em vez de travar, tenta entrar com as mesmas credenciais para concluir.
+        cred = await auth.signInWithEmailAndPassword(email, senha);
+      } else {
+        throw createErr;
+      }
+    }
     await dbFS.collection('usuarios').doc(cred.user.uid).set({
       nome, email, admin:true, ativo:true, criadoEm:new Date().toISOString()
     });
