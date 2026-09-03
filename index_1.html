@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Antecipação a Fornecedores — Financeiro Plurix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#0f1115; --bg-deep:#0a0b0e;
+    --panel:#181b21; --panel-2:#1e222a; --panel-3:#252a33;
+    --border:#2b303a; --border-soft:#20242c;
+    --text:#edeff2; --text-dim:#9aa2af; --text-faint:#69707c;
+    --accent:#ff8a3d; --accent-soft:#ff8a3d22; --accent-2:#ffb27a;
+    --positive:#2fd7a0; --positive-soft:#2fd7a022;
+    --negative:#ff5d6c; --negative-soft:#ff5d6c22;
+    --info:#5b9dff; --info-soft:#5b9dff1e; --info-text:#8fbaff;
+    --violet:#a78bfa; --violet-soft:#a78bfa22;
+    --login-glow-1:#1c2130; --login-glow-2:#201409;
+    --radius-sm:6px; --radius-md:10px; --radius-lg:16px;
+    --font-display:'Space Grotesk',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'JetBrains Mono',monospace;
+    --shadow-1: 0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 24px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"]{
+    color-scheme: light;
+    --bg:#f4f5f8; --bg-deep:#eceef3;
+    --panel:#ffffff; --panel-2:#f2f3f7; --panel-3:#e8eaf0;
+    --border:#dfe2e9; --border-soft:#e9ebf0;
+    --text:#1b1e24; --text-dim:#5c6270; --text-faint:#8890a0;
+    --accent:#f2790f; --accent-soft:#f2790f1a; --accent-2:#c85a00;
+    --positive:#0f9d72; --positive-soft:#0f9d7218;
+    --negative:#d93a49; --negative-soft:#d93a4918;
+    --info:#3f7fe0; --info-soft:#3f7fe015; --info-text:#2f5fb8;
+    --violet:#7c5cf0; --violet-soft:#7c5cf018;
+    --login-glow-1:#e4e9f7; --login-glow-2:#fde6cf;
+    --shadow-1: 0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(20,25,40,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:14px; line-height:1.5; min-height:100vh; -webkit-font-smoothing:antialiased;}
+  ::selection{background:var(--accent-soft); color:var(--accent-2);}
+  a{color:var(--accent-2);}
+  button{font-family:var(--font-body);}
+  input,select,textarea{
+    font-family:var(--font-body); background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:var(--radius-sm); padding:9px 11px; font-size:13.5px; outline:none; width:100%;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  input:focus,select:focus,textarea:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  input::placeholder{color:var(--text-faint);}
+  label{display:block; font-size:12px; color:var(--text-dim); margin-bottom:5px; font-weight:500;}
+  .field{margin-bottom:14px;}
+  .row{display:flex; gap:12px; flex-wrap:wrap;}
+  .row > .field{flex:1; min-width:150px;}
+  .num{font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
+  svg.icon{width:18px; height:18px; flex:none; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;}
+
+  #loginScreen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background: radial-gradient(circle at 15% 15%, var(--login-glow-1) 0%, transparent 45%), radial-gradient(circle at 85% 80%, var(--login-glow-2) 0%, transparent 45%), var(--bg-deep);
+    padding:24px;
+  }
+  .login-card{ width:100%; max-width:400px; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); padding:34px 30px 28px; box-shadow:var(--shadow-1); }
+  .login-brand{display:flex; align-items:center; gap:11px; margin-bottom:6px;}
+  .login-brand .mark{ width:38px;height:38px;border-radius:9px; background:linear-gradient(135deg, var(--accent), #c85a00); display:flex;align-items:center;justify-content:center; font-family:var(--font-display); font-weight:700; color:#1a0e00; font-size:15px; }
+  .login-brand .name{font-family:var(--font-display); font-weight:600; font-size:17px; letter-spacing:.2px;}
+  .login-brand .name small{display:block; font-family:var(--font-body); font-weight:400; font-size:11.5px; color:var(--text-dim); margin-top:1px;}
+  .login-sub{color:var(--text-dim); font-size:12.5px; margin:14px 0 22px; line-height:1.55;}
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; background:var(--accent); color:#1a0e00; border:none; border-radius:var(--radius-sm); padding:10px 16px; font-weight:700; font-size:13.5px; cursor:pointer; transition:transform .1s ease, filter .15s ease; white-space:nowrap; }
+  .btn:hover{filter:brightness(1.08);}
+  .btn:active{transform:scale(.98);}
+  .btn.block{width:100%;}
+  .btn.ghost{background:transparent; color:var(--text); border:1px solid var(--border);}
+  .btn.ghost:hover{border-color:var(--accent); color:var(--accent-2); filter:none;}
+  .btn.danger{background:var(--negative); color:#280003;}
+  .btn.sm{padding:6px 11px; font-size:12px;}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .login-error{ display:none; background:var(--negative-soft); border:1px solid #ff5d6c55; color:#ffb0b6; font-size:12.5px; padding:9px 11px; border-radius:var(--radius-sm); margin-bottom:14px; }
+  .login-note{ background:var(--accent-soft); border:1px solid #ff8a3d44; color:var(--accent-2); font-size:11.5px; padding:9px 11px; border-radius:var(--radius-sm); margin-bottom:14px; line-height:1.5; display:none; }
+  .login-foot{margin-top:18px; text-align:center; font-size:11px; color:var(--text-faint);}
+
+  #app{display:none; min-height:100vh;}
+  .shell{display:flex; min-height:100vh;}
+  .sidebar{ width:236px; flex:none; background:var(--bg-deep); border-right:1px solid var(--border-soft); display:flex; flex-direction:column; padding:20px 14px; position:sticky; top:0; height:100vh; }
+  .sb-brand{display:flex; align-items:center; gap:10px; padding:0 6px 20px; border-bottom:1px solid var(--border-soft); margin-bottom:16px;}
+  .sb-brand .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#c85a00); display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;color:#1a0e00;font-size:13px;flex:none;}
+  .sb-brand .txt{font-family:var(--font-display); font-weight:600; font-size:14px; line-height:1.25;}
+  .sb-brand .txt small{display:block; font-family:var(--font-body); font-weight:400; font-size:10.5px; color:var(--text-faint);}
+  .nav{display:flex; flex-direction:column; gap:2px; flex:1;}
+  .nav button{ display:flex; align-items:center; gap:11px; background:transparent; border:none; text-align:left; color:var(--text-dim); padding:10px 12px; border-radius:var(--radius-sm); cursor:pointer; font-size:13px; font-weight:500; transition:.12s; }
+  .nav button:hover{background:var(--panel-2); color:var(--text);}
+  .nav button.active{background:var(--panel-2); color:var(--accent-2);}
+  .nav button.active svg{stroke:var(--accent-2);}
+  .nav .sep{height:1px; background:var(--border-soft); margin:10px 4px;}
+  .sb-user{ border-top:1px solid var(--border-soft); padding-top:14px; margin-top:10px; display:flex; align-items:center; gap:10px; }
+  .avatar{ width:32px;height:32px;border-radius:50%; background:var(--panel-3); color:var(--accent-2); display:flex;align-items:center;justify-content:center; font-weight:700; font-size:13px; flex:none; font-family:var(--font-display); border:1px solid var(--border); }
+  .sb-user .who{flex:1; min-width:0;}
+  .sb-user .who .n{font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .sb-user .who .r{font-size:10.5px; color:var(--text-faint);}
+  .sb-user button{background:transparent;border:none;color:var(--text-faint);cursor:pointer;padding:6px;border-radius:6px;}
+  .sb-user button:hover{color:var(--negative); background:var(--negative-soft);}
+
+  .main{flex:1; min-width:0; display:flex; flex-direction:column;}
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 28px; border-bottom:1px solid var(--border-soft); background:var(--bg); position:sticky; top:0; z-index:5; }
+  .topbar h1{font-family:var(--font-display); font-size:19px; font-weight:600; margin:0;}
+  .topbar .sub{font-size:12px; color:var(--text-faint); margin-top:2px;}
+  .content{padding:24px 28px 60px; flex:1;}
+  .app-footer{ text-align:center; font-size:10.5px; color:var(--text-faint); opacity:.55; padding:10px 20px 16px; letter-spacing:.2px; }
+  .view{display:none;}
+  .view.active{display:block;}
+  .banner-pill{ display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--text-dim); background:var(--panel-2); border:1px solid var(--border); padding:4px 10px; border-radius:99px; }
+  .status-banner{ display:none; align-items:center; gap:10px; background:#5b9dff18; border:1px solid #5b9dff44; color:#bcd7ff; font-size:12.5px; padding:9px 14px; border-radius:var(--radius-sm); margin-bottom:18px; }
+
+  .grid{display:grid; gap:18px;}
+  .grid.cols-2{grid-template-columns:1fr 1fr;}
+  .grid.cols-3{grid-template-columns:repeat(3,1fr);}
+  .grid.cols-4{grid-template-columns:repeat(4,1fr);}
+  @media (max-width:1000px){ .grid.cols-4{grid-template-columns:repeat(2,1fr);} .grid.cols-3{grid-template-columns:repeat(2,1fr);} .grid.cols-2{grid-template-columns:1fr;} }
+  @media (max-width:640px){ .grid.cols-4{grid-template-columns:1fr;} }
+
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-md); padding:20px; }
+  .card h2{font-family:var(--font-display); font-size:15px; font-weight:600; margin:0 0 16px;}
+  .card h2 span{color:var(--text-faint); font-weight:400; font-size:12px; font-family:var(--font-body); display:block; margin-top:3px;}
+
+  .kpi{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-md); padding:18px 20px; position:relative; overflow:hidden; }
+  .kpi .lbl{font-size:11.5px; color:var(--text-dim); font-weight:600; text-transform:uppercase; letter-spacing:.4px;}
+  .kpi .val{font-family:var(--font-mono); font-size:25px; font-weight:600; margin-top:8px; letter-spacing:-.3px;}
+  .kpi .cap{font-size:11.5px; color:var(--text-faint); margin-top:5px;}
+  .kpi.accent{border-color:var(--accent-soft);}
+  .kpi.accent .val{color:var(--accent-2);}
+  .kpi.positive{border-color:var(--positive-soft);}
+  .kpi.positive .val{color:var(--positive);}
+  .kpi.info{border-color:var(--info-soft);}
+  .kpi.info .val{color:var(--info);}
+
+  fieldset{border:1px solid var(--border-soft); border-radius:var(--radius-md); padding:16px 16px 4px; margin:0 0 18px;}
+  legend{padding:0 8px; font-size:12px; font-weight:600; color:var(--text-dim);}
+
+  table{width:100%; border-collapse:collapse; font-size:12.6px;}
+  thead th{ text-align:left; font-size:10.6px; text-transform:uppercase; letter-spacing:.4px; color:var(--text-faint); font-weight:600; padding:0 10px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  tbody td{padding:9px 10px; border-bottom:1px solid var(--border-soft); vertical-align:middle;}
+  tbody tr:hover{background:var(--panel-2);}
+  .table-wrap{overflow-x:auto; border-radius:var(--radius-md); border:1px solid var(--border);}
+  .table-wrap table{background:var(--panel);}
+  tfoot td{padding:11px 10px; font-weight:700; border-top:1px solid var(--border); background:var(--panel-2);}
+
+  .badge{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:99px; font-size:11px; font-weight:600;}
+  .badge.simulada{background:var(--info-soft); color:var(--info-text);}
+  .badge.efetivada{background:var(--positive-soft); color:var(--positive);}
+  .badge.descartada{background:var(--negative-soft); color:var(--negative);}
+  .badge.admin{background:var(--accent-soft); color:var(--accent-2);}
+  .badge.user{background:var(--panel-3); color:var(--text-dim);}
+  .badge.inativo{background:var(--negative-soft); color:var(--negative);}
+
+  .icon-btn{background:transparent; border:1px solid var(--border); color:var(--text-dim); border-radius:6px; padding:6px 8px; cursor:pointer; transition:.12s;}
+  .icon-btn:hover{border-color:var(--accent); color:var(--accent-2);}
+  .icon-btn.on{color:var(--positive); border-color:#33d6a655;}
+
+  .empty{text-align:center; padding:50px 20px; color:var(--text-faint);}
+  .empty svg{width:38px;height:38px;stroke:var(--text-faint); margin-bottom:12px;}
+  .empty p{margin:0 0 4px; color:var(--text-dim); font-size:13.5px;}
+  .empty span{font-size:12px;}
+
+  .kv{display:flex; justify-content:space-between; padding:7px 0; font-size:12.8px; border-bottom:1px solid var(--border-soft);}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--text-dim);}
+  .kv .v{font-family:var(--font-mono); font-weight:600;}
+  .kv .v.neg{color:var(--negative);}
+  .kv .v.pos{color:var(--positive);}
+  .kv.total{border-top:1px dashed var(--border); margin-top:6px; padding-top:12px;}
+  .kv.total .v{font-size:17px;}
+
+  .toast{ position:fixed; bottom:24px; right:24px; background:var(--panel-3); border:1px solid var(--border); color:var(--text); padding:12px 18px; border-radius:var(--radius-md); font-size:13px; box-shadow:var(--shadow-1); display:flex; align-items:center; gap:10px; z-index:100; transform:translateY(12px); opacity:0; transition:.25s; pointer-events:none; max-width:340px; }
+  .toast.show{transform:translateY(0); opacity:1;}
+  .toast .dot{width:8px;height:8px;border-radius:50%; background:var(--positive); flex:none;}
+  .toast.err .dot{background:var(--negative);}
+
+  .modal-overlay{ position:fixed; inset:0; background:#000c; backdrop-filter:blur(2px); display:none; align-items:center; justify-content:center; z-index:200; padding:20px; }
+  .modal-overlay.show{display:flex;}
+  .modal{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); max-width:460px; width:100%; padding:24px; box-shadow:var(--shadow-1); max-height:88vh; overflow-y:auto;}
+  .modal h3{font-family:var(--font-display); margin:0 0 8px; font-size:16px;}
+  .modal p{color:var(--text-dim); font-size:13px; line-height:1.55; margin:0 0 20px;}
+  .modal .actions{display:flex; gap:10px; justify-content:flex-end; margin-top:8px;}
+
+  .team-row{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border-soft);}
+  .team-row:last-child{border-bottom:none;}
+  .team-row .nm{flex:1; min-width:0;}
+  .team-row .nm b{display:block; font-size:13px; font-weight:600;}
+  .team-row .nm small{color:var(--text-faint); font-size:11px;}
+
+  .help-note{font-size:11.5px; color:var(--text-faint); margin-top:6px; line-height:1.5;}
+  .filters{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;}
+  .filters select, .filters input{width:auto; min-width:140px;}
+
+  .titulos-table input, .titulos-table select{padding:6px 8px; font-size:12.5px; min-width:90px;}
+  .titulos-table td{padding:6px 6px;}
+  .row-remove{background:transparent;border:none;color:var(--text-faint);cursor:pointer;padding:4px;}
+  .row-remove:hover{color:var(--negative);}
+  .calc-cell{font-family:var(--font-mono); color:var(--text-dim); font-size:12px; white-space:nowrap;}
+
+  input[type="date"]{ position:relative; }
+  input[type="date"]::-webkit-calendar-picker-indicator{ filter:invert(0.85); cursor:pointer; opacity:.85; }
+  input[type="date"]::-webkit-calendar-picker-indicator:hover{ opacity:1; }
+
+  .titulos-cards{display:flex; flex-direction:column; gap:14px;}
+  .import-dropzone{
+    display:flex; align-items:center; gap:16px; cursor:pointer;
+    border:1.5px dashed var(--border); border-radius:var(--radius-md);
+    background:var(--panel-2); padding:18px 20px; margin-bottom:16px;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .import-dropzone svg{stroke:var(--text-faint); flex:none; transition:stroke .15s ease;}
+  .import-dropzone .dz-text{display:flex; flex-direction:column; gap:2px;}
+  .import-dropzone .dz-text b{font-size:13.5px; color:var(--text);}
+  .import-dropzone .dz-text span{font-size:12px; color:var(--text-faint);}
+  .import-dropzone:hover, .import-dropzone.dragover{
+    border-color:var(--accent); background:var(--accent-soft);
+  }
+  .import-dropzone:hover svg, .import-dropzone.dragover svg{stroke:var(--accent-2);}
+  .titulos-batch-fill{
+    display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:14px 20px;
+    background:var(--panel-3); border:1px solid var(--border); border-radius:var(--radius-md);
+    padding:14px 16px; margin-bottom:16px;
+  }
+  .titulos-batch-fill .tbf-label{font-size:12px; font-weight:600; color:var(--text-dim); white-space:nowrap; flex-basis:100%;}
+  .titulos-batch-fill .tbf-fields{display:flex; flex-wrap:wrap; gap:14px 20px; flex:1;}
+  .titulos-batch-fill .tbf-item{display:flex; flex-direction:column; gap:5px;}
+  .titulos-batch-fill .tbf-item label{font-size:11px; color:var(--text-faint); font-weight:600;}
+  .titulos-batch-fill .tbf-item input{width:160px;}
+  .tbf-apply-btn{
+    flex:0 0 auto; background:var(--accent); color:#1a0e00; border:1px solid var(--accent);
+    font-weight:700; padding:11px 20px; border-radius:var(--radius-sm);
+    box-shadow:0 2px 8px var(--accent-soft);
+  }
+  .tbf-apply-btn:hover{ filter:brightness(1.08); box-shadow:0 4px 12px var(--accent-soft); }
+  .titulo-card{background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;}
+  .titulo-card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+  .titulo-card-head .idx{font-size:11.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.4px;}
+  .titulo-card .row{margin-bottom:0;}
+  .titulo-card .row + .row{margin-top:12px;}
+  .titulo-card-result{
+    display:flex; flex-wrap:wrap; gap:10px 22px; margin-top:14px; padding-top:12px;
+    border-top:1px dashed var(--border);
+  }
+  .tcr-item{display:flex; flex-direction:column; gap:3px; min-width:100px;}
+  .tcr-item span{font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.3px;}
+  .tcr-item b{font-family:var(--font-mono); font-size:13.5px; font-weight:600;}
+  .tcr-item b.neg{color:var(--negative);}
+  .tcr-item b.pos{color:var(--positive);}
+  .tcr-item b.info{color:var(--info);}
+  .titulos-totais{
+    display:flex; flex-wrap:wrap; gap:10px 28px; margin-top:16px; padding:14px 16px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-md);
+  }
+  .titulos-totais > div{display:flex; flex-direction:column; gap:3px;}
+  .titulos-totais span{font-size:11px; color:var(--text-dim); font-weight:600;}
+  .titulos-totais b{font-family:var(--font-mono); font-size:16px;}
+
+  .tabs{display:flex; gap:6px; margin-bottom:16px; background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:3px; width:fit-content;}
+  .tabs button{background:transparent;border:none;color:var(--text-dim); padding:8px 14px; border-radius:5px; font-size:12.5px; font-weight:600; cursor:pointer;}
+  .tabs button.active{background:var(--panel-3); color:var(--text);}
+
+  .propose-preview{background:#fff; color:#1c1c1c; border-radius:var(--radius-md); overflow:hidden; font-family:var(--font-body);}
+  .propose-head{background:linear-gradient(120deg,#0c1740,#182969); padding:26px 28px; color:#fff;}
+  .propose-head h3{margin:0 0 4px; font-family:var(--font-display); font-size:19px;}
+  .propose-head p{margin:0; font-size:12px; color:#c9d3f0;}
+  .propose-body{padding:24px 28px;}
+  .propose-hero{background:#fff3ea; border:1px solid #ffd8b8; border-radius:10px; padding:16px 18px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;}
+  .propose-hero .lbl{font-size:11.5px; color:#a45a1c; font-weight:700; text-transform:uppercase; letter-spacing:.3px;}
+  .propose-hero .v{font-family:var(--font-display); font-size:26px; font-weight:700; color:#c8600f;}
+  .propose-body table{font-size:12px;}
+  .propose-body thead th{color:#8a8f99; border-color:#eee;}
+  .propose-body tbody td{border-color:#f0f0f0; color:#333;}
+  .propose-benefits{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px;}
+  .propose-benefits div{background:#f7f8fa; border-radius:8px; padding:12px 14px; font-size:12px; color:#444;}
+  .propose-foot{font-size:10.5px; color:#999; margin-top:20px; border-top:1px solid #eee; padding-top:12px;}
+
+  @media (max-width:880px){
+    .sidebar{position:fixed; z-index:50; transform:translateX(-100%); transition:.2s; box-shadow:0 0 40px #000a;}
+    .sidebar.open{transform:translateX(0);}
+    .content{padding:18px 16px 60px;}
+    .topbar{padding:14px 16px;}
+    .propose-benefits{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <button type="button" id="themeToggleBtnLogin" class="btn ghost sm" style="position:fixed; top:18px; right:18px; padding:8px 10px;" title="Alternar tema claro/escuro">🌙</button>
+
+  <div class="login-card" id="loginCard">
+    <div class="login-brand">
+      <div class="mark">PX</div>
+      <div class="name">Antecipação a Fornecedores<small>Plurix · Financeiro</small></div>
+    </div>
+    <p class="login-sub">Acesso restrito ao time Financeiro. Informe seu e-mail e senha para simular e acompanhar as antecipações concedidas a fornecedores.</p>
+
+    <div class="login-error" id="loginError"></div>
+
+    <div class="field">
+      <label for="loginEmail">E-mail</label>
+      <input type="email" id="loginEmail" placeholder="voce@empresa.com" autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="loginPass">Senha</label>
+      <input type="password" id="loginPass" placeholder="Senha" autocomplete="current-password">
+    </div>
+
+    <button class="btn block" id="loginBtn" disabled>Carregando…</button>
+    <div class="login-foot" id="dbStatusFoot">Verificando conexão…</div>
+    <button type="button" class="btn ghost sm block" id="forgotPassBtn" style="margin-top:14px;">Esqueci minha senha</button>
+  </div>
+
+  <div class="login-card" id="setupCard" style="display:none;">
+    <div class="login-brand">
+      <div class="mark">PX</div>
+      <div class="name">Configuração inicial<small>Plurix · Financeiro</small></div>
+    </div>
+    <p class="login-sub">Nenhum administrador foi encontrado ainda. Crie a primeira conta — ela será o administrador do sistema e poderá cadastrar o restante do time depois.</p>
+
+    <div class="login-error" id="setupError"></div>
+
+    <div class="field"><label for="setupNome">Seu nome</label><input type="text" id="setupNome" placeholder="Nome completo"></div>
+    <div class="field"><label for="setupEmail">E-mail</label><input type="email" id="setupEmail" placeholder="voce@empresa.com"></div>
+    <div class="field"><label for="setupSenha">Senha</label><input type="password" id="setupSenha" placeholder="Mínimo 6 caracteres"></div>
+    <div class="field"><label for="setupSenha2">Confirmar senha</label><input type="password" id="setupSenha2" placeholder="Repita a senha"></div>
+
+    <button class="btn block" id="setupBtn">Criar administrador e entrar</button>
+  </div>
+
+  <div class="app-footer" style="position:fixed; bottom:10px; left:0; right:0;">Desenvolvido por Gabriel Queiroz</div>
+</div>
+
+<div id="app">
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-brand">
+        <div class="mark">PX</div>
+        <div class="txt">Antecipação<small>Financeiro</small></div>
+      </div>
+      <nav class="nav">
+        <button data-view="simular" class="active">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg>
+          Nova simulação
+        </button>
+        <button data-view="historico">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+          Histórico
+        </button>
+        <button data-view="kpis">
+          <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/></svg>
+          KPIs
+        </button>
+        <div class="sep" id="adminSep" style="display:none;"></div>
+        <button data-view="admin" id="adminNavBtn" style="display:none;">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
+          Administração
+        </button>
+      </nav>
+      <div class="sb-user">
+        <div class="avatar" id="sbAvatar">?</div>
+        <div class="who">
+          <div class="n" id="sbName">—</div>
+          <div class="r" id="sbRole">—</div>
+        </div>
+        <button id="changePassBtn" title="Alterar senha">
+          <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px;"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </button>
+        <button id="themeToggleBtn" title="Alternar tema claro/escuro">🌙</button>
+        <button id="logoutBtn" title="Sair">
+          <svg class="icon" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1 id="pageTitle">Nova simulação</h1>
+          <div class="sub" id="pageSub">Antecipação de títulos de fornecedores — margem e valor líquido a pagar</div>
+        </div>
+        <span class="banner-pill" id="dbPill">● conectado</span>
+      </div>
+
+      <div class="content">
+        <!-- ===== VIEW: SIMULAR ===== -->
+        <section class="view active" id="view-simular">
+          <div class="card" style="margin-bottom:18px;">
+            <h2>Dados do fornecedor<span>Cabeçalho da operação de antecipação</span></h2>
+            <div class="row">
+              <div class="field"><label>Fornecedor</label><input id="f_fornecedor" placeholder="Razão social do fornecedor"></div>
+              <div class="field"><label>CNPJ</label><input id="f_cnpj" placeholder="00.000.000/0000-00"></div>
+              <div class="field"><label>Empresa / Bandeira</label><select id="f_bandeira"></select></div>
+              <div class="field"><label>Custo de captação (% a.m.)</label><input type="number" id="f_custoCaptacao" class="num" step="0.01" value="0"></div>
+            </div>
+            <div class="help-note">Deixe o custo de captação em 0 se a operação é 100% financiada com capital próprio (banco próprio, sem funding externo).</div>
+          </div>
+
+          <div class="card" style="margin-bottom:18px;">
+            <h2>Títulos a antecipar<span>Adicione um título por vez, ou importe de uma planilha (.xlsx)</span></h2>
+            <div class="import-dropzone" id="importDropzone">
+              <svg class="icon" viewBox="0 0 24 24" style="width:26px;height:26px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+              <div class="dz-text">
+                <b>Importar planilha (.xlsx)</b>
+                <span>Clique para selecionar ou arraste o arquivo aqui</span>
+              </div>
+            </div>
+            <input type="file" id="importPlanilhaInput" accept=".xlsx,.xls" style="display:none;">
+            <div class="titulos-batch-fill">
+              <span class="tbf-label">Preencher todos de uma vez:</span>
+              <div class="tbf-fields">
+                <div class="tbf-item">
+                  <label style="margin:0; white-space:nowrap;">Data da antecipação</label>
+                  <input type="date" id="batch_dataAnt" title="Data da antecipação">
+                </div>
+                <div class="tbf-item">
+                  <label style="margin:0; white-space:nowrap;">Vencimento original</label>
+                  <input type="date" id="batch_vencimento" title="Vencimento original">
+                </div>
+                <div class="tbf-item">
+                  <label style="margin:0; white-space:nowrap;">Taxa a.m. %</label>
+                  <input type="number" step="0.01" id="batch_taxa" class="num" placeholder="Ex: 1,80">
+                </div>
+              </div>
+              <button class="btn tbf-apply-btn" id="applyBatchBtn" type="button">Aplicar a todos os títulos</button>
+            </div>
+            <div id="titulosBody" class="titulos-cards"></div>
+            <div class="row" style="margin-top:14px;">
+              <button class="btn ghost sm" id="addTituloBtn" style="flex:0 0 auto;">+ Adicionar título</button>
+              <button class="btn danger sm" id="clearAllTitulosBtn" type="button" style="flex:0 0 auto;">🗑️ Excluir todos os títulos</button>
+            </div>
+            <div class="titulos-totais">
+              <div><span>Valor nominal total</span><b id="tot_nominal">R$ 0,00</b></div>
+              <div><span>Deságio total</span><b id="tot_desagio">R$ 0,00</b></div>
+              <div><span>Valor líquido total</span><b id="tot_liquido">R$ 0,00</b></div>
+            </div>
+          </div>
+
+          <div class="grid cols-2" style="align-items:start;">
+            <div class="card">
+              <h2>Resumo interno<span>Visão financeira completa da operação</span></h2>
+              <div class="kv"><span class="k">Valor nominal total</span><span class="v" id="r_nominal">R$ 0,00</span></div>
+              <div class="kv"><span class="k">Deságio total (receita bruta)</span><span class="v pos" id="r_desagioTotal">R$ 0,00</span></div>
+              <div class="kv"><span class="k">Custo de captação total</span><span class="v neg" id="r_custoCaptTotal">R$ 0,00</span></div>
+              <div class="kv"><span class="k">Taxa média ponderada</span><span class="v" id="r_taxaMedia">—</span></div>
+              <div class="kv"><span class="k">Prazo médio ponderado</span><span class="v" id="r_prazoMedio">—</span></div>
+              <div class="kv total"><span class="k">Margem líquida estimada</span><span class="v pos" id="r_margem">R$ 0,00</span></div>
+              <div class="kv"><span class="k">Valor líquido a pagar ao fornecedor</span><span class="v" id="r_liquidoPagar">R$ 0,00</span></div>
+              <div class="field" style="margin-top:14px;"><label>Observações internas</label><textarea id="f_obs" rows="2" placeholder="Contexto, alçada, condições especiais..."></textarea></div>
+              <div class="row" style="margin-top:6px;">
+                <button class="btn block" id="saveSimBtn" style="flex:1;">Salvar simulação</button>
+                <button class="btn ghost" id="pdfInternoBtn" style="flex:0 0 auto;">PDF interno</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Proposta ao fornecedor<span>Versão comercial — sem dados de margem interna</span></h2>
+              <div id="proposePreviewMount"></div>
+              <div class="row" style="margin-top:14px;">
+                <button class="btn block" id="pdfProposeBtn" style="flex:1;">Baixar proposta (PDF)</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== VIEW: HISTORICO ===== -->
+        <section class="view" id="view-historico">
+          <div class="filters">
+            <select id="h_filtroBandeira"><option value="">Todas as empresas</option></select>
+            <select id="h_filtroStatus">
+              <option value="">Todos os status</option>
+              <option value="simulada">Simulada</option>
+              <option value="efetivada">Efetivada</option>
+              <option value="descartada">Descartada</option>
+            </select>
+            <input type="text" id="h_busca" placeholder="Buscar por fornecedor / CNPJ...">
+            <button class="btn ghost sm" id="h_exportBtn">Exportar CSV</button>
+          </div>
+          <div class="table-wrap">
+            <table id="historicoTable">
+              <thead>
+                <tr>
+                  <th>Data</th><th>Usuário</th><th>Empresa</th><th>Fornecedor</th><th>Títulos</th>
+                  <th>Valor nominal</th><th>Valor líquido</th><th>Margem</th><th>Status</th><th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="historicoBody"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="historicoEmpty" style="display:none;">
+            <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+            <p>Nenhuma simulação registrada ainda</p>
+            <span>Vá em "Nova simulação" para começar.</span>
+          </div>
+        </section>
+
+        <!-- ===== VIEW: KPIS ===== -->
+        <section class="view" id="view-kpis">
+          <div class="filters">
+            <select id="k_filtroBandeira"><option value="">Todas as empresas</option></select>
+            <input type="date" id="k_filtroDe" title="Período de">
+            <input type="date" id="k_filtroAte" title="Período até">
+            <button class="btn ghost sm" id="k_limparFiltros" type="button">Limpar filtros</button>
+          </div>
+          <div class="grid cols-4" style="margin-bottom:20px;">
+            <div class="kpi">
+              <div class="lbl">Volume simulado</div>
+              <div class="val num" id="k_volSimulado">R$ 0</div>
+              <div class="cap" id="k_volSimuladoCap">0 simulações</div>
+            </div>
+            <div class="kpi accent">
+              <div class="lbl">Volume efetivado</div>
+              <div class="val num" id="k_volEfetivado">R$ 0</div>
+              <div class="cap" id="k_volEfetivadoCap">0 operações</div>
+            </div>
+            <div class="kpi info">
+              <div class="lbl">Taxa de conversão</div>
+              <div class="val num" id="k_conversao">0%</div>
+              <div class="cap">Efetivadas / simuladas</div>
+            </div>
+            <div class="kpi positive">
+              <div class="lbl">Margem líquida (efetivadas)</div>
+              <div class="val num" id="k_margem">R$ 0</div>
+              <div class="cap">Deságio − custo de captação</div>
+            </div>
+          </div>
+          <div class="grid cols-2">
+            <div class="card">
+              <h2>Volume efetivado por empresa<span>Valor nominal das operações efetivadas</span></h2>
+              <canvas id="chartBandeira" height="220"></canvas>
+            </div>
+            <div class="card">
+              <h2>Margem por fornecedor<span>Top fornecedores por margem líquida gerada</span></h2>
+              <canvas id="chartFornecedor" height="220"></canvas>
+            </div>
+          </div>
+          <div class="card" style="margin-top:18px;">
+            <h2>Evolução mensal<span>Volume simulado vs. efetivado por mês</span></h2>
+            <canvas id="chartMensal" height="90"></canvas>
+          </div>
+        </section>
+
+        <!-- ===== VIEW: ADMIN ===== -->
+        <section class="view" id="view-admin">
+          <div class="tabs">
+            <button data-tab="usuarios" class="active">Usuários</button>
+            <button data-tab="parametros">Parâmetros</button>
+            <button data-tab="dados">Dados</button>
+          </div>
+
+          <div id="admtab-usuarios">
+            <div class="card">
+              <h2>Usuários do sistema<span>Somente administradores podem criar ou remover acessos</span></h2>
+              <div id="userList"></div>
+              <button class="btn sm" id="newUserBtn" style="margin-top:14px;">+ Novo usuário</button>
+            </div>
+          </div>
+
+          <div id="admtab-parametros" style="display:none;">
+            <div class="grid cols-2">
+              <div class="card">
+                <h2>Empresas / Bandeiras<span>Usadas para segmentar as simulações</span></h2>
+                <div id="bandeirasList"></div>
+                <div class="row" style="margin-top:12px;">
+                  <div class="field" style="flex:1;"><input id="newBandeiraName" placeholder="Nome da empresa/bandeira"></div>
+                  <button class="btn sm" id="addBandeiraBtn">Adicionar</button>
+                </div>
+              </div>
+              <div class="card">
+                <h2>Parâmetro padrão<span>Aplicado como sugestão em novas simulações</span></h2>
+                <div class="field"><label>Custo de captação padrão (% a.m.)</label><input type="number" id="adm_custoCaptacaoPadrao" class="num" step="0.01"></div>
+                <button class="btn sm" id="saveParamsBtn">Salvar parâmetro</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="admtab-dados" style="display:none;">
+            <div class="card">
+              <h2>Dados<span>Exportação e manutenção da base compartilhada</span></h2>
+              <div class="row">
+                <button class="btn ghost sm" id="adm_exportBtn">Exportar todas as simulações (CSV)</button>
+                <button class="btn danger sm" id="adm_resetBtn">Zerar histórico</button>
+              </div>
+              <div class="help-note" style="margin-top:10px;">A base é compartilhada em tempo real com todo o time conectado. Excluir aqui remove os registros para todos.</div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+      <footer class="app-footer">Desenvolvido por Gabriel Queiroz</footer>
+    </main>
+  </div>
+</div>
+
+<div class="modal-overlay" id="genericModalOverlay">
+  <div class="modal" id="genericModal"></div>
+</div>
+
+<div class="modal-overlay" id="confirmOverlay">
+  <div class="modal">
+    <h3 id="confirmTitle">Confirmar ação</h3>
+    <p id="confirmText">Tem certeza?</p>
+    <div class="actions">
+      <button class="btn ghost sm" id="confirmCancel">Cancelar</button>
+      <button class="btn danger sm" id="confirmOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastMsg">Ok</span></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   CONFIG
+============================================================ */
+const DEFAULT_BANDEIRAS = ["Amigão","Paraná","Boa","Avenida"];
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBEPVmQXZLPydRjYdRPX_QpbwISpnQ4gZw",
+  authDomain: "simulador-de-recebiveis.firebaseapp.com",
+  projectId: "simulador-de-recebiveis",
+  storageBucket: "simulador-de-recebiveis.firebasestorage.app",
+  messagingSenderId: "276326471647",
+  appId: "1:276326471647:web:52d8956d4eb436ae50166a"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const dbFS = firebase.firestore();
+
+let usuarios = [];
+let bandeiras = DEFAULT_BANDEIRAS.slice();
+let parametros = { custoCaptacaoPadrao: 0 };
+let simulacoes = [];
+let currentUser = null; // {id, nome, email, admin}
+let titulosRows = []; // working rows for the "nova simulação" form
+let unsubSim=null, unsubUsuarios=null, unsubConfig=null;
+let chartBandeira=null, chartFornecedor=null, chartMensal=null;
+
+/* ============================================================
+   UTIL
+============================================================ */
+function fmtBRL(n){ if(isNaN(n)) n=0; return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+
+/* ============================================================
+   TEMA (claro/escuro)
+============================================================ */
+function cv(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  try{ localStorage.setItem('pxf_theme', theme); }catch(e){}
+  const icon = theme==='light' ? '🌙' : '☀️';
+  const b1=document.getElementById('themeToggleBtn'); if(b1) b1.textContent=icon;
+  const b2=document.getElementById('themeToggleBtnLogin'); if(b2) b2.textContent=icon;
+  if (chartBandeira || chartFornecedor || chartMensal){ setTimeout(renderKpis, 30); }
+}
+function initTheme(){
+  let saved = null;
+  try{ saved = localStorage.getItem('pxf_theme'); }catch(e){}
+  const preferLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  applyTheme(saved || (preferLight ? 'light' : 'dark'));
+}
+function toggleTheme(){
+  applyTheme(document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light');
+}
+function fmtPct(n,d){ d=d===undefined?2:d; if(isNaN(n)) n=0; return n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d})+"%"; }
+function fmtDate(iso){ if(!iso) return "—"; const d=new Date(iso); return d.toLocaleDateString('pt-BR')+" "+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+function fmtDateOnly(iso){ if(!iso) return "—"; const [y,m,d] = iso.split('-'); return d+"/"+m+"/"+y; }
+function uid(p){ return (p||'id')+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function daysBetween(iso1, iso2){ if(!iso1||!iso2) return 0; const a=new Date(iso1+"T00:00:00"), b=new Date(iso2+"T00:00:00"); return Math.round((b-a)/86400000); }
+
+function toast(msg, isErr){
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.toggle('err', !!isErr);
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 3400);
+}
+
+function confirmDialog(title, text){
+  return new Promise((resolve)=>{
+    const ov = document.getElementById('confirmOverlay');
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmText').textContent = text;
+    ov.classList.add('show');
+    function cleanup(v){ ov.classList.remove('show'); okBtn.removeEventListener('click', onOk); cancelBtn.removeEventListener('click', onCancel); resolve(v); }
+    const okBtn = document.getElementById('confirmOk');
+    const cancelBtn = document.getElementById('confirmCancel');
+    function onOk(){ cleanup(true); }
+    function onCancel(){ cleanup(false); }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+
+function openModal(html){
+  document.getElementById('genericModal').innerHTML = html;
+  document.getElementById('genericModalOverlay').classList.add('show');
+}
+function closeModal(){ document.getElementById('genericModalOverlay').classList.remove('show'); }
+document.getElementById('genericModalOverlay').addEventListener('click', (e)=>{ if(e.target.id==='genericModalOverlay') closeModal(); });
+
+function friendlyAuthError(code){
+  const map = {
+    'auth/invalid-email': 'E-mail inválido.',
+    'auth/user-disabled': 'Esta conta foi desativada.',
+    'auth/user-not-found': 'E-mail ou senha inválidos.',
+    'auth/wrong-password': 'E-mail ou senha inválidos.',
+    'auth/invalid-credential': 'E-mail ou senha inválidos.',
+    'auth/email-already-in-use': 'Já existe uma conta com este e-mail.',
+    'auth/weak-password': 'A senha precisa ter ao menos 6 caracteres.',
+    'auth/network-request-failed': 'Falha de conexão. Verifique sua internet e tente novamente.',
+    'auth/too-many-requests': 'Muitas tentativas. Aguarde um pouco antes de tentar de novo.'
+  };
+  return map[code] || 'Ocorreu um erro inesperado. Tente novamente.';
+}
+
+/* ============================================================
+   STORAGE LAYER (Firebase Firestore)
+============================================================ */
+async function initStorage(){
+  try{
+    const cfgDoc = await dbFS.doc("config/geral").get();
+    if (!cfgDoc.exists){ await dbFS.doc("config/geral").set({ bandeiras: DEFAULT_BANDEIRAS, custoCaptacaoPadrao: 0 }); }
+  }catch(e){ console.warn('config init', e); }
+
+  document.getElementById('dbStatusFoot').textContent = 'Conectado.';
+  renderBandeiraSelects();
+}
+
+function subscribeLive(){
+  unsubSim && unsubSim();
+  unsubSim = dbFS.collection("simulacoes").onSnapshot((snap)=>{
+    simulacoes = snap.docs.map(d=>Object.assign({id:d.id}, d.data()));
+    renderHistorico(); renderKpis(); populateFilterOptions();
+  }, (err)=>console.warn('sim snapshot', err));
+
+  unsubUsuarios && unsubUsuarios();
+  unsubUsuarios = dbFS.collection("usuarios").onSnapshot((snap)=>{
+    usuarios = snap.docs.map(d=>Object.assign({id:d.id}, d.data()));
+    renderUserList();
+    // Se o usuário logado teve o próprio perfil alterado (ex: desativado por outro admin), refletir.
+    if (currentUser){
+      const me = usuarios.find(u=>u.id===currentUser.id);
+      if (me) currentUser.admin = !!me.admin;
+      document.getElementById('adminNavBtn').style.display = currentUser.admin ? 'flex' : 'none';
+      document.getElementById('adminSep').style.display = currentUser.admin ? 'block' : 'none';
+    }
+  }, (err)=>console.warn('users snapshot', err));
+
+  unsubConfig && unsubConfig();
+  unsubConfig = dbFS.doc("config/geral").onSnapshot((snap)=>{
+    if (snap.exists){
+      bandeiras = snap.data().bandeiras || DEFAULT_BANDEIRAS.slice();
+      parametros = { custoCaptacaoPadrao: snap.data().custoCaptacaoPadrao || 0 };
+      renderBandeiraSelects(); renderBandeirasAdmin(); syncParamFields(); populateFilterOptions();
+    }
+  }, (err)=>console.warn('config snapshot', err));
+}
+function unsubscribeAll(){
+  unsubSim && unsubSim(); unsubUsuarios && unsubUsuarios(); unsubConfig && unsubConfig();
+  unsubSim = unsubUsuarios = unsubConfig = null;
+}
+
+async function saveConfig(patch){
+  const merged = Object.assign({bandeiras, custoCaptacaoPadrao:parametros.custoCaptacaoPadrao}, patch);
+  bandeiras = merged.bandeiras; parametros = { custoCaptacaoPadrao: merged.custoCaptacaoPadrao };
+  await dbFS.doc("config/geral").set(merged);
+}
+
+async function updateUsuario(id, patch){ await dbFS.doc("usuarios/"+id).update(patch); }
+
+async function addSimulacao(rec){ const ref = await dbFS.collection("simulacoes").add(rec); return ref.id; }
+async function updateSimulacao(id, patch){ await dbFS.doc("simulacoes/"+id).update(patch); }
+async function deleteSimulacao(id){ await dbFS.doc("simulacoes/"+id).delete(); }
+async function resetAllSimulacoes(){ for (const s of simulacoes){ await dbFS.doc("simulacoes/"+s.id).delete(); } }
+
+/* ============================================================
+   LOGIN / AUTENTICAÇÃO (Firebase Authentication)
+============================================================ */
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+document.getElementById('loginEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+function showLoginError(msg){ const el=document.getElementById('loginError'); el.textContent=msg; el.style.display='block'; }
+function showSetupError(msg){ const el=document.getElementById('setupError'); el.textContent=msg; el.style.display='block'; }
+
+async function doLogin(){
+  document.getElementById('loginError').style.display='none';
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPass').value;
+  if (!email || !password){ showLoginError('Informe e-mail e senha.'); return; }
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = 'Entrando…';
+  try{
+    await auth.signInWithEmailAndPassword(email, password);
+    // o restante do fluxo (checar perfil/ativo e entrar no app) acontece em onAuthStateChanged
+  }catch(e){
+    console.error(e);
+    showLoginError(friendlyAuthError(e.code));
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+}
+
+document.getElementById('forgotPassBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email){ showLoginError('Digite seu e-mail no campo acima e clique em "Esqueci minha senha" novamente.'); return; }
+  try{
+    await auth.sendPasswordResetEmail(email);
+    toast('E-mail de redefinição enviado para '+email+'.');
+  }catch(e){
+    console.error(e);
+    showLoginError(friendlyAuthError(e.code));
+  }
+});
+
+document.getElementById('setupBtn').addEventListener('click', async ()=>{
+  document.getElementById('setupError').style.display='none';
+  const nome = document.getElementById('setupNome').value.trim();
+  const email = document.getElementById('setupEmail').value.trim();
+  const senha = document.getElementById('setupSenha').value;
+  const senha2 = document.getElementById('setupSenha2').value;
+  if (!nome || !email || !senha){ showSetupError('Preencha todos os campos.'); return; }
+  if (senha.length < 6){ showSetupError('A senha precisa ter ao menos 6 caracteres.'); return; }
+  if (senha !== senha2){ showSetupError('As senhas não coincidem.'); return; }
+
+  const btn = document.getElementById('setupBtn');
+  btn.disabled = true; btn.textContent = 'Criando…';
+  try{
+    const cred = await auth.createUserWithEmailAndPassword(email, senha);
+    await dbFS.collection('usuarios').doc(cred.user.uid).set({
+      nome, email, admin:true, ativo:true, criadoEm:new Date().toISOString()
+    });
+    // Marca a configuração inicial como concluída (documento público de leitura, só
+    // gravável por quem está autenticado) — é o que permite detectar "sem admin ainda"
+    // antes mesmo de alguém logar, sem precisar abrir a leitura da lista de usuários.
+    await dbFS.doc('meta/setup').set({ hasAdmin:true });
+    // onAuthStateChanged cuida de entrar no app a partir daqui.
+  }catch(e){
+    console.error(e);
+    showSetupError(friendlyAuthError(e.code));
+    btn.disabled = false; btn.textContent = 'Criar administrador e entrar';
+  }
+});
+
+async function ensureLoginScreenReady(){
+  const loginBtn = document.getElementById('loginBtn');
+  try{
+    const snap = await dbFS.doc('meta/setup').get();
+    if (!snap.exists || !snap.data().hasAdmin){
+      document.getElementById('loginCard').style.display = 'none';
+      document.getElementById('setupCard').style.display = 'block';
+    } else {
+      document.getElementById('loginCard').style.display = 'block';
+      document.getElementById('setupCard').style.display = 'none';
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Entrar';
+      document.getElementById('dbStatusFoot').textContent = 'Pronto.';
+    }
+  }catch(e){
+    console.error('Falha ao verificar configuração inicial', e);
+    // Em caso de falha de rede/permissão, ainda libera o login para tentativa manual.
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Entrar';
+    document.getElementById('dbStatusFoot').textContent = 'Não foi possível verificar a base agora.';
+  }
+}
+
+auth.onAuthStateChanged(async (user)=>{
+  if (!user){
+    currentUser = null;
+    unsubscribeAll();
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+    await ensureLoginScreenReady();
+    return;
+  }
+  try{
+    const profSnap = await dbFS.doc('usuarios/'+user.uid).get();
+    if (!profSnap.exists){
+      // Conta existe no Firebase Auth mas não tem perfil no Firestore (não deveria acontecer em uso normal).
+      showLoginError('Sua conta não tem um perfil configurado. Fale com o administrador.');
+      await auth.signOut();
+      return;
+    }
+    const prof = profSnap.data();
+    if (prof.ativo===false){
+      showLoginError('Esta conta está desativada. Fale com o administrador.');
+      await auth.signOut();
+      return;
+    }
+    currentUser = { id:user.uid, nome:prof.nome, email:prof.email||user.email, admin:!!prof.admin };
+    subscribeLive();
+    enterApp();
+  }catch(e){
+    console.error('Erro ao carregar perfil', e);
+    showLoginError('Erro ao carregar seu perfil. Tente novamente.');
+    await auth.signOut();
+  }
+});
+
+function enterApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('sbName').textContent = currentUser.nome;
+  document.getElementById('sbRole').textContent = currentUser.admin ? 'Administrador' : 'Usuário';
+  document.getElementById('sbAvatar').textContent = currentUser.nome.slice(0,2).toUpperCase();
+  document.getElementById('adminNavBtn').style.display = currentUser.admin ? 'flex' : 'none';
+  document.getElementById('adminSep').style.display = currentUser.admin ? 'block' : 'none';
+  document.getElementById('f_custoCaptacao').value = parametros.custoCaptacaoPadrao || 0;
+  document.getElementById('batch_dataAnt').value = new Date().toISOString().slice(0,10);
+  if (titulosRows.length===0) addTituloRow();
+  renderTitulosTable();
+  populateFilterOptions();
+  renderHistorico();
+  renderKpis();
+  renderUserList();
+  renderBandeirasAdmin();
+  syncParamFields();
+}
+
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  await auth.signOut();
+  location.reload();
+});
+
+document.getElementById('changePassBtn').addEventListener('click', ()=>{
+  openModal(`
+    <h3>Alterar minha senha</h3>
+    <p>Informe sua senha atual e a nova senha desejada.</p>
+    <div class="field"><label>Senha atual</label><input type="password" id="cp_atual"></div>
+    <div class="field"><label>Nova senha</label><input type="password" id="cp_nova"></div>
+    <div class="field"><label>Confirmar nova senha</label><input type="password" id="cp_confirma"></div>
+    <div class="actions">
+      <button class="btn ghost sm" onclick="document.getElementById('genericModalOverlay').classList.remove('show')">Cancelar</button>
+      <button class="btn sm" id="cp_salvar">Salvar</button>
+    </div>
+  `);
+  document.getElementById('cp_salvar').addEventListener('click', async ()=>{
+    const atual = document.getElementById('cp_atual').value;
+    const nova = document.getElementById('cp_nova').value;
+    const conf = document.getElementById('cp_confirma').value;
+    if (!nova || nova.length<6){ toast('A nova senha deve ter ao menos 6 caracteres.', true); return; }
+    if (nova !== conf){ toast('As senhas não coincidem.', true); return; }
+    try{
+      const user = auth.currentUser;
+      const cred = firebase.auth.EmailAuthProvider.credential(user.email, atual);
+      await user.reauthenticateWithCredential(cred);
+      await user.updatePassword(nova);
+      closeModal();
+      toast('Senha alterada com sucesso.');
+    }catch(e){
+      console.error(e);
+      toast(e.code==='auth/wrong-password' ? 'Senha atual incorreta.' : friendlyAuthError(e.code), true);
+    }
+  });
+});
+
+
+/* ============================================================
+   NAVIGATION
+============================================================ */
+const VIEW_TITLES = {
+  simular: ["Nova simulação", "Antecipação de títulos de fornecedores — margem e valor líquido a pagar"],
+  historico: ["Histórico de simulações", "Todas as operações registradas pelo Financeiro"],
+  kpis: ["KPIs", "Volume, conversão e margem das antecipações a fornecedores"],
+  admin: ["Administração", "Usuários, parâmetros e dados do sistema"]
+};
+document.querySelectorAll('.nav button[data-view]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const v = btn.getAttribute('data-view');
+    document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
+    document.getElementById('view-'+v).classList.add('active');
+    document.getElementById('pageTitle').textContent = VIEW_TITLES[v][0];
+    document.getElementById('pageSub').textContent = VIEW_TITLES[v][1];
+    document.getElementById('sidebar').classList.remove('open');
+    if (v==='kpis') setTimeout(renderKpis, 30);
+  });
+});
+document.querySelectorAll('.tabs button[data-tab]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    ['usuarios','parametros','dados'].forEach(t=>{
+      document.getElementById('admtab-'+t).style.display = (t===btn.getAttribute('data-tab')) ? 'block':'none';
+    });
+  });
+});
+
+function renderBandeiraSelects(){
+  const sel = document.getElementById('f_bandeira');
+  const cur = sel.value;
+  sel.innerHTML = bandeiras.map(b=>`<option>${esc(b)}</option>`).join('');
+  if (bandeiras.includes(cur)) sel.value = cur;
+}
+
+/* ============================================================
+   TÍTULOS TABLE (nova simulação)
+============================================================ */
+function addTituloRow(){
+  titulosRows.push({ id:uid('t'), codigo:'', conta:'', nota:'', dataAntecipacao: new Date().toISOString().slice(0,10), dataVencimento:'', valorNominal:0, taxaMensal:0 });
+  renderTitulosTable();
+}
+document.getElementById('addTituloBtn').addEventListener('click', addTituloRow);
+
+document.getElementById('applyBatchBtn').addEventListener('click', ()=>{
+  if (titulosRows.length===0){ toast('Adicione ao menos um título primeiro.', true); return; }
+  const dataVal = document.getElementById('batch_dataAnt').value;
+  const vencVal = document.getElementById('batch_vencimento').value;
+  const taxaRaw = document.getElementById('batch_taxa').value;
+  const taxaVal = parseFloat(taxaRaw);
+  const hasData = !!dataVal;
+  const hasVenc = !!vencVal;
+  const hasTaxa = taxaRaw !== '' && !isNaN(taxaVal);
+  if (!hasData && !hasVenc && !hasTaxa){ toast('Preencha ao menos um campo antes de aplicar.', true); return; }
+
+  titulosRows.forEach(r=>{
+    if (hasData) r.dataAntecipacao = dataVal;
+    if (hasVenc) r.dataVencimento = vencVal;
+    if (hasTaxa) r.taxaMensal = taxaVal;
+  });
+  renderTitulosTable();
+
+  const parts = [];
+  if (hasData) parts.push('data de antecipação');
+  if (hasVenc) parts.push('vencimento original');
+  if (hasTaxa) parts.push('taxa a.m.');
+  toast('Campos aplicados a todos os títulos: ' + parts.join(', ') + '.');
+});
+
+document.getElementById('clearAllTitulosBtn').addEventListener('click', async ()=>{
+  if (titulosRows.length===0) return;
+  const ok = await confirmDialog('Excluir todos os títulos', 'Isso remove todos os títulos preenchidos neste formulário. Deseja continuar?');
+  if (!ok) return;
+  titulosRows = [];
+  addTituloRow();
+  toast('Todos os títulos foram removidos.');
+});
+
+/* ============================================================
+   IMPORTAR PLANILHA (.xlsx)
+============================================================ */
+function normalizeHeader(s){
+  return String(s==null?'':s).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,' ').trim();
+}
+
+const IMPORT_FIELD_PATTERNS = {
+  codigo: ['codigo'],
+  conta: ['conta'],
+  fornecedorNome: ['fornecedor'],
+  cnpj: ['cnpj'],
+  nota: ['numero dcto','n da nota','nota fiscal','num dcto','documento','nota'],
+  vencimentoPrioritario: ['aut pgto'],
+  vencimentoFallback: ['vencimento','data do pagamento','vcto'],
+  valorNominal: ['valor liquido'],
+  taxaMensal: ['taxa a m','taxa am','taxa mensal']
+};
+
+function excelCellToISODate(v){
+  if (v instanceof Date && !isNaN(v)){
+    const y=v.getFullYear(), m=String(v.getMonth()+1).padStart(2,'0'), d=String(v.getDate()).padStart(2,'0');
+    return y+'-'+m+'-'+d;
+  }
+  return '';
+}
+
+function findHeaderCol(normHeaders, patterns, exact){
+  for (const p of patterns){
+    let idx = normHeaders.findIndex(h=>h===p);
+    if (idx===-1 && !exact) idx = normHeaders.findIndex(h=>h && h.includes(p));
+    if (idx!==-1) return idx;
+  }
+  return -1;
+}
+
+function parseTitulosSheet(grid){
+  const allPatterns = Object.values(IMPORT_FIELD_PATTERNS).flat();
+  let headerRowIdx = -1, bestScore = 0;
+  const scanLimit = Math.min(grid.length, 25);
+  for (let r=0; r<scanLimit; r++){
+    const row = grid[r]||[];
+    let score = 0;
+    row.forEach(cell=>{
+      const norm = normalizeHeader(cell);
+      if (!norm) return;
+      if (allPatterns.some(p=>norm===p || norm.includes(p))) score++;
+    });
+    if (score > bestScore){ bestScore = score; headerRowIdx = r; }
+  }
+  if (headerRowIdx===-1 || bestScore < 2) return null;
+
+  const headerRow = grid[headerRowIdx]||[];
+  const normHeaders = headerRow.map(normalizeHeader);
+
+  const colCodigo = findHeaderCol(normHeaders, IMPORT_FIELD_PATTERNS.codigo);
+  const colConta = findHeaderCol(normHeaders, IMPORT_FIELD_PATTERNS.conta);
+  const colFornecedor = findHeaderCol(normHeaders, IMPORT_FIELD_PATTERNS.fornecedorNome, true);
+  const colCnpj = findHeaderCol(normHeaders, IMPORT_FIELD_PATTERNS.cnpj);
+  const colNota = findHeaderCol(normHeaders, IMPORT_FIELD_PATTERNS.nota);
+  let colVenc = findHeaderCol(normHeaders, IMPORT_FIELD_PATTERNS.vencimentoPrioritario, true);
+  if (colVenc===-1) colVenc = findHeaderCol(normHeaders, IMPORT_FIELD_PATTERNS.vencimentoFallback);
+  const colValor = findHeaderCol(normHeaders, IMPORT_FIELD_PATTERNS.valorNominal, true);
+  const colTaxa = findHeaderCol(normHeaders, IMPORT_FIELD_PATTERNS.taxaMensal);
+
+  if (colValor===-1) return null; // sem coluna de valor não há como montar título
+
+  // Fornecedor/CNPJ costumam vir num texto livre acima da tabela em relatórios de ERP
+  // (ex: "Fornecedor: 123 - Nome, CNPJ: 00.000.000/0000-00").
+  let fornecedorTexto = '', cnpjTexto = '';
+  for (let r=0; r<headerRowIdx; r++){
+    (grid[r]||[]).forEach(cell=>{
+      const s = String(cell==null?'':cell);
+      if (!cnpjTexto){ const m = s.match(/CNPJ:?\s*([\d.\/-]{14,18})/i); if (m) cnpjTexto = m[1]; }
+      if (!fornecedorTexto){ const m = s.match(/Fornecedor:?\s*\d*\s*-?\s*([^,\/]+)/i); if (m) fornecedorTexto = m[1].trim(); }
+    });
+  }
+
+  const rows = [];
+  let semVencimento = 0;
+  for (let r=headerRowIdx+1; r<grid.length; r++){
+    const row = grid[r]||[];
+    if (!row.length) continue;
+    const valorRaw = row[colValor];
+    const notaRaw = colNota!==-1 ? row[colNota] : null;
+    const valorNum = typeof valorRaw==='number' ? valorRaw : parseFloat(String(valorRaw||'').replace(/\./g,'').replace(',','.'));
+    if (!valorNum || isNaN(valorNum) || valorNum<=0) continue; // provável linha de total/rodapé/vazia
+    if (colNota!==-1 && (notaRaw===null || notaRaw==='')) continue; // sem nota = provável linha de total
+
+    const vencISO = colVenc!==-1 ? excelCellToISODate(row[colVenc]) : '';
+    if (!vencISO) semVencimento++;
+
+    const fornecedorLinha = colFornecedor!==-1 ? String(row[colFornecedor]||'').trim() : '';
+    if (fornecedorLinha && !fornecedorTexto) fornecedorTexto = fornecedorLinha;
+    const cnpjLinha = colCnpj!==-1 ? String(row[colCnpj]||'').trim() : '';
+    if (cnpjLinha && !cnpjTexto) cnpjTexto = cnpjLinha;
+
+    rows.push({
+      id: uid('t'),
+      codigo: colCodigo!==-1 ? String(row[colCodigo]==null?'':row[colCodigo]) : '',
+      conta: colConta!==-1 ? String(row[colConta]==null?'':row[colConta]) : '',
+      nota: notaRaw!=null ? String(notaRaw) : '',
+      dataAntecipacao: new Date().toISOString().slice(0,10),
+      dataVencimento: vencISO,
+      valorNominal: valorNum,
+      taxaMensal: colTaxa!==-1 ? (parseFloat(row[colTaxa])||0) : 0
+    });
+  }
+
+  if (rows.length===0) return null;
+  return { rows, fornecedor: fornecedorTexto, cnpj: cnpjTexto, semVencimento };
+}
+
+const importDropzone = document.getElementById('importDropzone');
+const importPlanilhaInput = document.getElementById('importPlanilhaInput');
+
+importDropzone.addEventListener('click', ()=> importPlanilhaInput.click());
+importPlanilhaInput.addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (file) processImportFile(file);
+});
+['dragover','dragenter'].forEach(ev=>{
+  importDropzone.addEventListener(ev, (e)=>{ e.preventDefault(); importDropzone.classList.add('dragover'); });
+});
+['dragleave','dragend'].forEach(ev=>{
+  importDropzone.addEventListener(ev, (e)=>{ e.preventDefault(); importDropzone.classList.remove('dragover'); });
+});
+importDropzone.addEventListener('drop', (e)=>{
+  e.preventDefault();
+  importDropzone.classList.remove('dragover');
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) processImportFile(file);
+});
+
+async function processImportFile(file){
+  if (!/\.(xlsx|xls)$/i.test(file.name)){
+    toast('Envie um arquivo .xlsx ou .xls.', true);
+    return;
+  }
+  if (!window.XLSX){ toast('Biblioteca de planilhas ainda carregando, tente novamente em instantes.', true); return; }
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array', cellDates:true});
+    const sheetName = wb.SheetNames[0];
+    const grid = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
+    const result = parseTitulosSheet(grid);
+    if (!result){
+      toast('Não foi possível identificar os títulos nessa planilha. Confira se o modelo tem as colunas esperadas.', true);
+      return;
+    }
+
+    const hasExistingData = titulosRows.some(r=>r.valorNominal>0 || (r.nota && String(r.nota).trim()));
+    if (hasExistingData){
+      const ok = await confirmDialog('Importar planilha', 'Isso substitui os títulos já preenchidos neste formulário pelos importados da planilha. Deseja continuar?');
+      if (!ok) return;
+    }
+
+    titulosRows = result.rows;
+    if (result.fornecedor && !document.getElementById('f_fornecedor').value.trim()){
+      document.getElementById('f_fornecedor').value = result.fornecedor;
+    }
+    if (result.cnpj && !document.getElementById('f_cnpj').value.trim()){
+      document.getElementById('f_cnpj').value = result.cnpj;
+    }
+    renderTitulosTable();
+
+    let msg = result.rows.length + (result.rows.length===1 ? ' título importado.' : ' títulos importados.');
+    if (result.semVencimento>0) msg += ' '+result.semVencimento+(result.semVencimento===1?' está':' estão')+' sem vencimento — preencha manualmente.';
+    toast(msg);
+  }catch(err){
+    console.error(err);
+    toast('Erro ao ler a planilha. Verifique se é um arquivo .xlsx válido.', true);
+  }
+}
+
+function calcTitulo(row){
+  const dias = daysBetween(row.dataAntecipacao, row.dataVencimento);
+  const diasEfetivo = dias>0?dias:0;
+  const percProporcional = (row.taxaMensal/100)/30*diasEfetivo;
+  const desagio = row.valorNominal * percProporcional;
+  const valorLiquido = row.valorNominal - desagio;
+  return { dias:diasEfetivo, percProporcional, desagio, valorLiquido };
+}
+
+function renderTitulosTable(){
+  const body = document.getElementById('titulosBody');
+  body.innerHTML = titulosRows.map((row, i)=>{
+    const c = calcTitulo(row);
+    return `
+    <div class="titulo-card" data-id="${row.id}">
+      <div class="titulo-card-head">
+        <span class="idx">Título ${i+1}</span>
+        <button class="row-remove" data-id="${row.id}" title="Remover título">
+          <svg class="icon" style="width:16px;height:16px;" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="row">
+        <div class="field"><label>Código</label><input class="t-codigo" value="${esc(row.codigo)}" placeholder="Ex: 001"></div>
+        <div class="field"><label>Conta</label><input class="t-conta" value="${esc(row.conta)}" placeholder="Conta contábil"></div>
+        <div class="field"><label>N° da nota</label><input class="t-nota" value="${esc(row.nota)}" placeholder="Ex: 12345"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Data da antecipação</label><input class="t-dataAnt" type="date" value="${row.dataAntecipacao||''}"></div>
+        <div class="field"><label>Vencimento original</label><input class="t-dataVenc" type="date" value="${row.dataVencimento||''}"></div>
+        <div class="field"><label>Valor nominal (R$)</label><input class="t-valor num" type="number" step="0.01" value="${row.valorNominal||''}" placeholder="0,00"></div>
+        <div class="field"><label>Taxa a.m. (%)</label><input class="t-taxa num" type="number" step="0.01" value="${row.taxaMensal||''}" placeholder="0,00"></div>
+      </div>
+      <div class="titulo-card-result">
+        <div class="tcr-item"><span>Dias</span><b>${c.dias}d</b></div>
+        <div class="tcr-item"><span>% Proporcional</span><b>${fmtPct(c.percProporcional*100)}</b></div>
+        <div class="tcr-item"><span>Deságio</span><b class="info">${fmtBRL(c.desagio)}</b></div>
+        <div class="tcr-item"><span>Valor líquido</span><b class="pos">${fmtBRL(c.valorLiquido)}</b></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  body.querySelectorAll('.titulo-card').forEach(card=>{
+    const id = card.getAttribute('data-id');
+    const row = titulosRows.find(r=>r.id===id);
+    function bind(sel, field, isNum){
+      card.querySelector(sel).addEventListener('input', (e)=>{
+        row[field] = isNum ? (parseFloat(e.target.value)||0) : e.target.value;
+        // Atualiza só os valores calculados (sem recriar os campos), para não perder o foco
+        // nem interromper a digitação ou a escolha de data.
+        updateComputedForRow(row.id);
+        renderResumoInterno();
+        renderProposePreview();
+      });
+    }
+    bind('.t-codigo','codigo'); bind('.t-conta','conta'); bind('.t-nota','nota');
+    bind('.t-dataAnt','dataAntecipacao'); bind('.t-dataVenc','dataVencimento');
+    bind('.t-valor','valorNominal', true); bind('.t-taxa','taxaMensal', true);
+  });
+  body.querySelectorAll('.row-remove').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      titulosRows = titulosRows.filter(r=>r.id!==btn.getAttribute('data-id'));
+      if (titulosRows.length===0) addTituloRow();
+      renderTitulosTable(); renderResumoInterno(); renderProposePreview();
+    });
+  });
+
+  updateTotaisDisplay();
+  renderResumoInterno();
+  renderProposePreview();
+}
+
+function updateTotaisDisplay(){
+  const totNominal = titulosRows.reduce((a,r)=>a+r.valorNominal,0);
+  const totDesagio = titulosRows.reduce((a,r)=>a+calcTitulo(r).desagio,0);
+  const totLiquido = totNominal - totDesagio;
+  document.getElementById('tot_nominal').textContent = fmtBRL(totNominal);
+  document.getElementById('tot_desagio').textContent = fmtBRL(totDesagio);
+  document.getElementById('tot_liquido').textContent = fmtBRL(totLiquido);
+}
+
+function updateComputedForRow(id){
+  const row = titulosRows.find(r=>r.id===id);
+  const card = document.querySelector('.titulo-card[data-id="'+id+'"]');
+  if (!row || !card) return;
+  const c = calcTitulo(row);
+  const items = card.querySelectorAll('.tcr-item b');
+  if (items.length===4){
+    items[0].textContent = c.dias+'d';
+    items[1].textContent = fmtPct(c.percProporcional*100);
+    items[2].textContent = fmtBRL(c.desagio);
+    items[3].textContent = fmtBRL(c.valorLiquido);
+  }
+  updateTotaisDisplay();
+}
+
+function computeTotais(){
+  const custoCaptacaoMensal = parseFloat(document.getElementById('f_custoCaptacao').value)||0;
+  let valorNominalTotal=0, desagioTotal=0, custoCaptacaoTotal=0, somaTaxaPonderada=0, somaDiasPonderado=0;
+  titulosRows.forEach(row=>{
+    const c = calcTitulo(row);
+    valorNominalTotal += row.valorNominal;
+    desagioTotal += c.desagio;
+    const custoCapt = row.valorNominal * (custoCaptacaoMensal/100)/30*c.dias;
+    custoCaptacaoTotal += custoCapt;
+    somaTaxaPonderada += row.taxaMensal * row.valorNominal;
+    somaDiasPonderado += c.dias * row.valorNominal;
+  });
+  const valorLiquidoTotal = valorNominalTotal - desagioTotal;
+  const margemLiquida = desagioTotal - custoCaptacaoTotal;
+  const taxaMedia = valorNominalTotal>0 ? somaTaxaPonderada/valorNominalTotal : 0;
+  const prazoMedio = valorNominalTotal>0 ? somaDiasPonderado/valorNominalTotal : 0;
+  return { valorNominalTotal, desagioTotal, custoCaptacaoTotal, valorLiquidoTotal, margemLiquida, taxaMedia, prazoMedio, custoCaptacaoMensal };
+}
+
+function renderResumoInterno(){
+  const t = computeTotais();
+  document.getElementById('r_nominal').textContent = fmtBRL(t.valorNominalTotal);
+  document.getElementById('r_desagioTotal').textContent = fmtBRL(t.desagioTotal);
+  document.getElementById('r_custoCaptTotal').textContent = fmtBRL(t.custoCaptacaoTotal);
+  document.getElementById('r_taxaMedia').textContent = t.valorNominalTotal>0 ? fmtPct(t.taxaMedia)+' a.m.' : '—';
+  document.getElementById('r_prazoMedio').textContent = t.valorNominalTotal>0 ? Math.round(t.prazoMedio)+' dias' : '—';
+  document.getElementById('r_margem').textContent = fmtBRL(t.margemLiquida);
+  document.getElementById('r_liquidoPagar').textContent = fmtBRL(t.valorLiquidoTotal);
+}
+document.getElementById('f_custoCaptacao').addEventListener('input', renderResumoInterno);
+
+function renderProposePreview(){
+  const t = computeTotais();
+  const fornecedor = document.getElementById('f_fornecedor').value.trim() || 'Fornecedor';
+  const cnpj = document.getElementById('f_cnpj').value.trim();
+  const rows = titulosRows.filter(r=>r.valorNominal>0).map(r=>{
+    const c = calcTitulo(r);
+    return `<tr>
+      <td>${esc(r.nota||'—')}</td>
+      <td>${fmtDateOnly(r.dataVencimento)}</td>
+      <td>${fmtBRL(r.valorNominal)}</td>
+      <td>${c.dias}d</td>
+      <td>${fmtPct(c.percProporcional*100)}</td>
+      <td style="color:#1a8a63; font-weight:600;">${fmtBRL(c.valorLiquido)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('proposePreviewMount').innerHTML = `
+    <div class="propose-preview">
+      <div class="propose-head">
+        <p style="margin:0 0 4px; font-size:10.5px; letter-spacing:.4px; text-transform:uppercase; color:#9fb3e8;">Proposta de Antecipação</p>
+        <h3 style="font-size:24px;">${esc(fornecedor)}</h3>
+        <p>${cnpj ? 'CNPJ: '+esc(cnpj)+' · ' : ''}Plurix Financeiro</p>
+      </div>
+      <div class="propose-body">
+        <div class="propose-hero">
+          <div>
+            <div class="lbl">Você recebe hoje</div>
+            <div class="v">${fmtBRL(t.valorLiquidoTotal)}</div>
+          </div>
+          <div>
+            <div class="lbl" style="text-align:right;">Taxa média</div>
+            <div class="v" style="font-size:18px;">${t.valorNominalTotal>0?fmtPct(t.taxaMedia):'—'} a.m.</div>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Nota</th><th>Vencimento</th><th>Valor nominal</th><th>Prazo</th><th>% Proporcional</th><th>Valor líquido</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="6" style="text-align:center; color:#999;">Adicione títulos para gerar a proposta</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+document.getElementById('f_fornecedor').addEventListener('input', renderProposePreview);
+document.getElementById('f_cnpj').addEventListener('input', renderProposePreview);
+
+/* ============================================================
+   SALVAR / PDF
+============================================================ */
+document.getElementById('saveSimBtn').addEventListener('click', async ()=>{
+  const t = computeTotais();
+  if (t.valorNominalTotal<=0){ toast('Adicione ao menos um título com valor.', true); return; }
+  const fornecedor = document.getElementById('f_fornecedor').value.trim();
+  if (!fornecedor){ toast('Informe o nome do fornecedor.', true); return; }
+
+  const rec = {
+    dataISO: new Date().toISOString(),
+    usuario: currentUser.nome,
+    fornecedor,
+    cnpj: document.getElementById('f_cnpj').value.trim(),
+    bandeira: document.getElementById('f_bandeira').value,
+    custoCaptacaoMensal: t.custoCaptacaoMensal,
+    titulos: titulosRows.map(r=>Object.assign({}, r, calcTitulo(r))),
+    valorNominalTotal: t.valorNominalTotal,
+    desagioTotal: t.desagioTotal,
+    custoCaptacaoTotal: t.custoCaptacaoTotal,
+    valorLiquidoTotal: t.valorLiquidoTotal,
+    margemLiquida: t.margemLiquida,
+    taxaMedia: t.taxaMedia,
+    prazoMedio: t.prazoMedio,
+    obs: document.getElementById('f_obs').value.trim(),
+    status: 'simulada'
+  };
+  try{
+    await addSimulacao(rec);
+    toast('Simulação salva no histórico.');
+  }catch(e){ toast('Não foi possível salvar. Tente novamente.', true); console.error(e); }
+});
+
+document.getElementById('pdfInternoBtn').addEventListener('click', ()=>{
+  const t = computeTotais();
+  if (t.valorNominalTotal<=0){ toast('Adicione ao menos um título com valor.', true); return; }
+  gerarPDFInterno({
+    dataISO:new Date().toISOString(), usuario:currentUser.nome,
+    fornecedor:document.getElementById('f_fornecedor').value.trim(), cnpj:document.getElementById('f_cnpj').value.trim(),
+    bandeira:document.getElementById('f_bandeira').value, titulos:titulosRows.map(r=>Object.assign({}, r, calcTitulo(r))),
+    valorNominalTotal:t.valorNominalTotal, desagioTotal:t.desagioTotal, custoCaptacaoTotal:t.custoCaptacaoTotal,
+    valorLiquidoTotal:t.valorLiquidoTotal, margemLiquida:t.margemLiquida, taxaMedia:t.taxaMedia, prazoMedio:t.prazoMedio, status:'simulada'
+  });
+});
+document.getElementById('pdfProposeBtn').addEventListener('click', ()=>{
+  const t = computeTotais();
+  if (t.valorNominalTotal<=0){ toast('Adicione ao menos um título com valor.', true); return; }
+  gerarPDFProposta({
+    dataISO:new Date().toISOString(), fornecedor:document.getElementById('f_fornecedor').value.trim(),
+    cnpj:document.getElementById('f_cnpj').value.trim(),
+    titulos:titulosRows.map(r=>Object.assign({}, r, calcTitulo(r))), valorNominalTotal:t.valorNominalTotal,
+    valorLiquidoTotal:t.valorLiquidoTotal, taxaMedia:t.taxaMedia, prazoMedio:t.prazoMedio
+  });
+});
+
+/* ============================================================
+   HISTORICO
+============================================================ */
+function populateFilterOptions(){
+  const bSel = document.getElementById('h_filtroBandeira');
+  const cur = bSel.value;
+  bSel.innerHTML = '<option value="">Todas as empresas</option>' + bandeiras.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');
+  bSel.value = cur;
+
+  const kSel = document.getElementById('k_filtroBandeira');
+  const kCur = kSel.value;
+  kSel.innerHTML = '<option value="">Todas as empresas</option>' + bandeiras.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');
+  kSel.value = kCur;
+}
+['h_filtroBandeira','h_filtroStatus','h_busca'].forEach(id=>document.getElementById(id).addEventListener('input', renderHistorico));
+['k_filtroBandeira','k_filtroDe','k_filtroAte'].forEach(id=>document.getElementById(id).addEventListener('input', renderKpis));
+document.getElementById('k_limparFiltros').addEventListener('click', ()=>{
+  document.getElementById('k_filtroBandeira').value = '';
+  document.getElementById('k_filtroDe').value = '';
+  document.getElementById('k_filtroAte').value = '';
+  renderKpis();
+});
+
+function filteredSims(){
+  const b = document.getElementById('h_filtroBandeira').value;
+  const s = document.getElementById('h_filtroStatus').value;
+  const q = document.getElementById('h_busca').value.toLowerCase();
+  return simulacoes.filter(r=>{
+    if (b && r.bandeira!==b) return false;
+    if (s && r.status!==s) return false;
+    if (q && !(`${r.fornecedor||''} ${r.cnpj||''}`.toLowerCase().includes(q))) return false;
+    return true;
+  }).sort((a,b)=> new Date(b.dataISO) - new Date(a.dataISO));
+}
+function statusLabel(s){ return s==='efetivada'?'Efetivada':s==='descartada'?'Descartada':'Simulada'; }
+
+function renderHistorico(){
+  if (!currentUser) return; // as escutas do banco começam antes do login
+  const rows = filteredSims();
+  const body = document.getElementById('historicoBody');
+  document.getElementById('historicoEmpty').style.display = rows.length? 'none':'block';
+  document.getElementById('historicoTable').style.display = rows.length? 'table':'none';
+
+  body.innerHTML = rows.map(r=>{
+    const canManage = currentUser.admin || r.usuario===currentUser.nome;
+    return `
+    <tr>
+      <td>${fmtDate(r.dataISO)}</td>
+      <td>${esc(r.usuario)}</td>
+      <td>${esc(r.bandeira||'—')}</td>
+      <td>${esc(r.fornecedor)}${r.cnpj?(' · '+esc(r.cnpj)):''}</td>
+      <td class="num">${(r.titulos||[]).length}</td>
+      <td class="num">${fmtBRL(r.valorNominalTotal)}</td>
+      <td class="num">${fmtBRL(r.valorLiquidoTotal)}</td>
+      <td class="num" style="color:var(--positive);">${fmtBRL(r.margemLiquida)}</td>
+      <td><span class="badge ${r.status}">${statusLabel(r.status)}</span></td>
+      <td>
+        <div style="display:flex; gap:6px;">
+          ${r.status!=='efetivada' ? `<button class="icon-btn" data-act="efetivar" data-id="${r.id}" title="Marcar como efetivada">
+            <svg class="icon" style="width:15px;height:15px;" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+          </button>` : `<span class="icon-btn on" title="Efetivada"><svg class="icon" style="width:15px;height:15px;" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>`}
+          <button class="icon-btn" data-act="pdfint" data-id="${r.id}" title="PDF interno">
+            <svg class="icon" style="width:15px;height:15px;" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          </button>
+          <button class="icon-btn" data-act="pdfprop" data-id="${r.id}" title="PDF proposta ao fornecedor">
+            <svg class="icon" style="width:15px;height:15px;" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          </button>
+          ${canManage ? `<button class="icon-btn" data-act="del" data-id="${r.id}" title="Excluir">
+            <svg class="icon" style="width:15px;height:15px;" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  body.querySelectorAll('button[data-act]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.getAttribute('data-id');
+      const act = btn.getAttribute('data-act');
+      const rec = simulacoes.find(s=>s.id===id);
+      if (!rec) return;
+      if (act==='efetivar'){
+        await updateSimulacao(id, {status:'efetivada', efetivadaEm:new Date().toISOString(), efetivadaPor:currentUser.nome});
+        toast('Simulação marcada como efetivada.');
+      } else if (act==='pdfint'){ gerarPDFInterno(rec); }
+      else if (act==='pdfprop'){ gerarPDFProposta(rec); }
+      else if (act==='del'){
+        const ok = await confirmDialog('Excluir simulação', 'Esta ação remove o registro para toda a equipe. Deseja continuar?');
+        if (ok){ await deleteSimulacao(id); toast('Registro excluído.'); }
+      }
+    });
+  });
+}
+document.getElementById('h_exportBtn').addEventListener('click', ()=>exportCSV(filteredSims(), 'historico-filtrado'));
+
+/* ============================================================
+   KPIs
+============================================================ */
+function getFilteredKpiSims(){
+  const b = document.getElementById('k_filtroBandeira').value;
+  const de = document.getElementById('k_filtroDe').value;
+  const ate = document.getElementById('k_filtroAte').value;
+  return simulacoes.filter(r=>{
+    if (b && r.bandeira!==b) return false;
+    if (de || ate){
+      const d = (r.dataISO||'').slice(0,10);
+      if (de && d < de) return false;
+      if (ate && d > ate) return false;
+    }
+    return true;
+  });
+}
+
+function renderKpis(){
+  const all = getFilteredKpiSims();
+  const efet = all.filter(r=>r.status==='efetivada');
+  const volSimulado = all.reduce((a,r)=>a+(r.valorNominalTotal||0),0);
+  const volEfetivado = efet.reduce((a,r)=>a+(r.valorNominalTotal||0),0);
+  const conversao = all.length ? (efet.length/all.length*100) : 0;
+  const margemTotal = efet.reduce((a,r)=>a+(r.margemLiquida||0),0);
+
+  document.getElementById('k_volSimulado').textContent = fmtBRL(volSimulado);
+  document.getElementById('k_volSimuladoCap').textContent = all.length + (all.length===1?' simulação':' simulações');
+  document.getElementById('k_volEfetivado').textContent = fmtBRL(volEfetivado);
+  document.getElementById('k_volEfetivadoCap').textContent = efet.length + (efet.length===1?' operação':' operações');
+  document.getElementById('k_conversao').textContent = fmtPct(conversao,1);
+  document.getElementById('k_margem').textContent = fmtBRL(margemTotal);
+
+  const byBandeira = {}; bandeiras.forEach(b=>byBandeira[b]=0);
+  efet.forEach(r=>{ byBandeira[r.bandeira] = (byBandeira[r.bandeira]||0) + (r.valorNominalTotal||0); });
+  const ctx1 = document.getElementById('chartBandeira');
+  if (ctx1 && window.Chart){
+    if (chartBandeira) chartBandeira.destroy();
+    chartBandeira = new Chart(ctx1, { type:'bar', data:{ labels:Object.keys(byBandeira), datasets:[{ data:Object.values(byBandeira), backgroundColor:cv('--accent'), borderRadius:5, maxBarThickness:46 }]}, options: chartOpts(v=>fmtBRL(v)) });
+  }
+
+  const byForn = {};
+  efet.forEach(r=>{ byForn[r.fornecedor] = (byForn[r.fornecedor]||0) + (r.margemLiquida||0); });
+  const topForn = Object.entries(byForn).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const ctx2 = document.getElementById('chartFornecedor');
+  if (ctx2 && window.Chart){
+    if (chartFornecedor) chartFornecedor.destroy();
+    chartFornecedor = new Chart(ctx2, { type:'bar', data:{ labels:topForn.map(x=>x[0]), datasets:[{ data:topForn.map(x=>x[1]), backgroundColor:cv('--violet'), borderRadius:5, maxBarThickness:36 }]}, options: Object.assign(chartOpts(v=>fmtBRL(v)), {indexAxis:'y'}) });
+  }
+
+  const byMonth = {};
+  all.forEach(r=>{
+    const d = new Date(r.dataISO);
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    byMonth[key] = byMonth[key] || {sim:0, efet:0};
+    byMonth[key].sim += r.valorNominalTotal||0;
+    if (r.status==='efetivada') byMonth[key].efet += r.valorNominalTotal||0;
+  });
+  const months = Object.keys(byMonth).sort();
+  const ctx3 = document.getElementById('chartMensal');
+  if (ctx3 && window.Chart){
+    if (chartMensal) chartMensal.destroy();
+    chartMensal = new Chart(ctx3, {
+      type:'line',
+      data:{ labels: months.map(m=>{ const [y,mo]=m.split('-'); return mo+'/'+y.slice(2); }),
+        datasets:[
+          { label:'Simulado', data:months.map(m=>byMonth[m].sim), borderColor:cv('--info'), backgroundColor:cv('--info-soft'), tension:.35, fill:true },
+          { label:'Efetivado', data:months.map(m=>byMonth[m].efet), borderColor:cv('--positive'), backgroundColor:cv('--positive-soft'), tension:.35, fill:true }
+        ]},
+      options: chartOpts(v=>fmtBRL(v), true)
+    });
+  }
+}
+function chartOpts(fmt, legend){
+  const tickColor = cv('--text-dim');
+  const gridColor = cv('--border-soft');
+  return {
+    responsive:true,
+    plugins:{ legend:{ display: !!legend, labels:{color:tickColor, font:{family:'Inter'}} }, tooltip:{ callbacks:{ label:(ctx)=> fmt(ctx.raw) } } },
+    scales:{ x:{ ticks:{color:tickColor, font:{family:'Inter', size:11}}, grid:{color:gridColor} }, y:{ ticks:{color:tickColor, font:{family:'Inter', size:11}, callback:v=>fmt(v)}, grid:{color:gridColor} } }
+  };
+}
+
+/* ============================================================
+   ADMIN — USUÁRIOS
+============================================================ */
+function renderUserList(){
+  const el = document.getElementById('userList');
+  if (!el) return;
+  el.innerHTML = usuarios.map(u=>`
+    <div class="team-row">
+      <div class="avatar" style="width:28px;height:28px;font-size:11px;">${esc(u.nome.slice(0,2).toUpperCase())}</div>
+      <div class="nm"><b>${esc(u.nome)}</b><small>${esc(u.email)}</small></div>
+      <span class="badge ${u.admin?'admin':'user'}">${u.admin?'Admin':'Usuário'}</span>
+      ${u.ativo===false?'<span class="badge inativo">Inativo</span>':''}
+      <button class="icon-btn" data-act="reset" data-id="${u.id}" title="Enviar e-mail de redefinição de senha" style="padding:5px 7px;">
+        <svg class="icon" style="width:13px;height:13px;" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </button>
+      <button class="icon-btn" data-act="toggleAdmin" data-id="${u.id}" title="Alternar admin" style="padding:5px 7px;">
+        <svg class="icon" style="width:13px;height:13px;" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+      </button>
+      <button class="icon-btn" data-act="toggleAtivo" data-id="${u.id}" title="Ativar/desativar" style="padding:5px 7px;">
+        <svg class="icon" style="width:13px;height:13px;" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><path d="M12 2v10"/></svg>
+      </button>
+    </div>
+  `).join('');
+
+  el.querySelectorAll('button[data-act]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.getAttribute('data-id');
+      const act = btn.getAttribute('data-act');
+      const u = usuarios.find(x=>x.id===id);
+      if (!u) return;
+      if (act==='toggleAdmin'){
+        if (u.id===currentUser.id){ toast('Você não pode alterar seu próprio nível de acesso.', true); return; }
+        await updateUsuario(id, {admin: !u.admin}); toast('Nível de acesso atualizado.');
+      } else if (act==='toggleAtivo'){
+        if (u.id===currentUser.id){ toast('Você não pode desativar a si mesmo.', true); return; }
+        const ok = await confirmDialog(u.ativo===false?'Reativar usuário':'Desativar usuário', u.ativo===false?`Reativar o acesso de "${u.nome}"?`:`Desativar o acesso de "${u.nome}"? A pessoa não conseguirá mais entrar, mas o histórico dela é mantido.`);
+        if (!ok) return;
+        await updateUsuario(id, {ativo: u.ativo===false ? true : false}); toast('Status atualizado.');
+      } else if (act==='reset'){
+        const ok = await confirmDialog('Enviar redefinição de senha', `Enviar um e-mail de redefinição de senha para ${u.email}?`);
+        if (!ok) return;
+        try{
+          await auth.sendPasswordResetEmail(u.email);
+          toast('E-mail de redefinição enviado.');
+        }catch(e){
+          console.error(e);
+          toast(friendlyAuthError(e.code), true);
+        }
+      }
+    });
+  });
+}
+
+document.getElementById('newUserBtn').addEventListener('click', ()=>{
+  openModal(`
+    <h3>Novo usuário</h3>
+    <p>Crie o acesso de um novo membro do time Financeiro.</p>
+    <div class="field"><label>Nome completo</label><input id="nu_nome"></div>
+    <div class="field"><label>E-mail</label><input type="email" id="nu_email" placeholder="pessoa@empresa.com"></div>
+    <div class="field"><label>Senha inicial</label><input type="password" id="nu_senha" placeholder="Mínimo 6 caracteres"></div>
+    <div class="field" style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="nu_admin" style="width:16px;height:16px;"><label style="margin:0;" for="nu_admin">Conceder acesso de administrador</label></div>
+    <div class="help-note">A pessoa poderá trocar essa senha depois, ou você pode enviar um e-mail de redefinição a qualquer momento.</div>
+    <div class="actions">
+      <button class="btn ghost sm" onclick="document.getElementById('genericModalOverlay').classList.remove('show')">Cancelar</button>
+      <button class="btn sm" id="nu_salvar">Criar usuário</button>
+    </div>
+  `);
+  document.getElementById('nu_salvar').addEventListener('click', async ()=>{
+    const nome = document.getElementById('nu_nome').value.trim();
+    const email = document.getElementById('nu_email').value.trim();
+    const senha = document.getElementById('nu_senha').value;
+    const admin = document.getElementById('nu_admin').checked;
+    if (!nome || !email || !senha){ toast('Preencha todos os campos.', true); return; }
+    if (senha.length < 6){ toast('A senha precisa ter ao menos 6 caracteres.', true); return; }
+    const btn = document.getElementById('nu_salvar');
+    btn.disabled = true; btn.textContent = 'Criando…';
+    // Usa um app Firebase secundário só para criar a conta, para não derrubar a sessão do admin atual.
+    const secondaryName = 'Secondary_'+Date.now();
+    let secondaryApp;
+    try{
+      secondaryApp = firebase.initializeApp(firebaseConfig, secondaryName);
+      const secondaryAuth = secondaryApp.auth();
+      const cred = await secondaryAuth.createUserWithEmailAndPassword(email, senha);
+      await dbFS.collection('usuarios').doc(cred.user.uid).set({
+        nome, email, admin, ativo:true, criadoEm:new Date().toISOString()
+      });
+      await secondaryAuth.signOut();
+      closeModal();
+      toast('Usuário criado.');
+    }catch(e){
+      console.error(e);
+      toast(friendlyAuthError(e.code), true);
+      btn.disabled = false; btn.textContent = 'Criar usuário';
+    }finally{
+      if (secondaryApp){ try{ await secondaryApp.delete(); }catch(e){} }
+    }
+  });
+});
+
+
+/* ============================================================
+   ADMIN — PARÂMETROS
+============================================================ */
+function renderBandeirasAdmin(){
+  const el = document.getElementById('bandeirasList');
+  if (!el) return;
+  el.innerHTML = bandeiras.map((b,idx)=>`
+    <div class="team-row">
+      <div class="nm"><b>${esc(b)}</b></div>
+      <button class="icon-btn" data-idx="${idx}" title="Remover" style="padding:5px 7px;">
+        <svg class="icon" style="width:13px;height:13px;" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  `).join('');
+  el.querySelectorAll('button[data-idx]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const idx = parseInt(btn.getAttribute('data-idx'));
+      const novaLista = bandeiras.filter((_,i)=>i!==idx);
+      await saveConfig({bandeiras: novaLista});
+      toast('Lista atualizada.');
+    });
+  });
+}
+document.getElementById('addBandeiraBtn').addEventListener('click', async ()=>{
+  const input = document.getElementById('newBandeiraName');
+  const nome = input.value.trim();
+  if (!nome) return;
+  if (bandeiras.some(b=>b.toLowerCase()===nome.toLowerCase())){ toast('Já existe na lista.', true); return; }
+  await saveConfig({bandeiras: bandeiras.concat([nome])});
+  input.value='';
+  toast('Empresa/bandeira adicionada.');
+});
+function syncParamFields(){ const el=document.getElementById('adm_custoCaptacaoPadrao'); if(el) el.value = parametros.custoCaptacaoPadrao||0; }
+document.getElementById('saveParamsBtn').addEventListener('click', async ()=>{
+  const v = parseFloat(document.getElementById('adm_custoCaptacaoPadrao').value)||0;
+  await saveConfig({custoCaptacaoPadrao: v});
+  toast('Parâmetro salvo.');
+});
+
+document.getElementById('adm_exportBtn').addEventListener('click', ()=>exportCSV(simulacoes, 'todas-simulacoes'));
+document.getElementById('adm_resetBtn').addEventListener('click', async ()=>{
+  const ok = await confirmDialog('Zerar histórico', 'Isso apaga TODAS as simulações da base compartilhada, para todo o time. Esta ação não pode ser desfeita.');
+  if (!ok) return;
+  await resetAllSimulacoes();
+  toast('Histórico zerado.');
+});
+
+/* ============================================================
+   EXPORT CSV
+============================================================ */
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+
+function exportCSV(rows, baseName){
+  if (!rows.length){ toast('Não há dados para exportar.', true); return; }
+  const cols = ['dataISO','usuario','bandeira','fornecedor','cnpj','valorNominalTotal','desagioTotal','custoCaptacaoTotal','valorLiquidoTotal','margemLiquida','taxaMedia','prazoMedio','status','obs'];
+  const header = cols.join(';');
+  const lines = rows.map(r=> cols.map(c=>{
+    let v = r[c];
+    if (v===undefined||v===null) v='';
+    if (typeof v === 'number') v = String(v).replace('.',',');
+    v = String(v).replace(/;/g,',').replace(/\n/g,' ');
+    return v;
+  }).join(';'));
+  const csv = '\uFEFF'+header+'\n'+lines.join('\n');
+  const filename = baseName+'-'+new Date().toISOString().slice(0,10)+'.csv';
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  downloadBlob(blob, filename);
+  toast('CSV exportado.');
+}
+
+/* ============================================================
+   PDF — INTERNO
+============================================================ */
+function gerarPDFInterno(rec){
+  try{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({unit:'pt', format:'a4'});
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 44;
+    let y = 0;
+
+    doc.setFillColor(12,23,64); doc.rect(0,0,pageW,84,'F');
+    doc.setFillColor(255,138,61); doc.rect(0,84,pageW,4,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    doc.text('Simulação de Antecipação a Fornecedores', margin, 38);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(230,230,240);
+    doc.text('Plurix · Financeiro — Relatório interno', margin, 58);
+
+    y = 116; doc.setTextColor(30,30,30);
+    function sectionTitle(t){ doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(12,23,64); doc.text(t, margin, y); doc.setDrawColor(230,230,235); doc.line(margin,y+5,pageW-margin,y+5); y+=20; }
+    function kv(k,v,opts){ opts=opts||{}; doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(90,90,100); doc.text(k, margin, y); doc.setFont('helvetica','bold'); doc.setTextColor(...(opts.color||[30,30,30])); doc.text(String(v), pageW-margin, y, {align:'right'}); y+=16; }
+
+    sectionTitle('Identificação');
+    kv('Data/hora', fmtDate(rec.dataISO));
+    kv('Usuário responsável', rec.usuario);
+    kv('Fornecedor', rec.fornecedor);
+    kv('CNPJ', rec.cnpj || '—');
+    kv('Empresa/Bandeira', rec.bandeira || '—');
+    kv('Status', statusLabel(rec.status));
+    y+=6;
+
+    sectionTitle('Títulos');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(110,110,115);
+    const cols = [margin, margin+70, margin+150, margin+230, margin+310, margin+390];
+    ['Nota','Venc.','Valor nominal','Dias','% Prop.','Vlr líquido'].forEach((h,i)=>doc.text(h, cols[i], y));
+    y+=12; doc.setDrawColor(230,230,235); doc.line(margin,y-8,pageW-margin,y-8);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(50,50,55);
+    (rec.titulos||[]).forEach(t=>{
+      if (y>760){ doc.addPage(); y=50; }
+      doc.text(String(t.nota||'—'), cols[0], y);
+      doc.text(fmtDateOnly(t.dataVencimento), cols[1], y);
+      doc.text(fmtBRL(t.valorNominal), cols[2], y);
+      doc.text((t.dias||0)+'d', cols[3], y);
+      doc.text(fmtPct((t.percProporcional||0)*100), cols[4], y);
+      doc.text(fmtBRL(t.valorLiquido), cols[5], y);
+      y+=14;
+    });
+    y+=10;
+
+    sectionTitle('Resultado financeiro');
+    kv('Valor nominal total', fmtBRL(rec.valorNominalTotal));
+    kv('Deságio total (receita bruta)', fmtBRL(rec.desagioTotal), {color:[63,127,224]});
+    kv('Custo de captação total', fmtBRL(rec.custoCaptacaoTotal));
+    kv('Margem líquida estimada', fmtBRL(rec.margemLiquida), {color:[20,140,110]});
+    kv('Valor líquido a pagar ao fornecedor', fmtBRL(rec.valorLiquidoTotal));
+    kv('Taxa média ponderada', fmtPct(rec.taxaMedia)+' a.m.');
+    kv('Prazo médio ponderado', Math.round(rec.prazoMedio||0)+' dias');
+
+    doc.setFontSize(8); doc.setTextColor(150,150,155);
+    doc.text('Documento interno — não distribuir ao fornecedor. Gerado pelo simulador de antecipação — Plurix Financeiro.', margin, 812);
+
+    const blob = doc.output('blob');
+    const filename = `interno-${(rec.fornecedor||'fornecedor').toLowerCase().replace(/\s+/g,'-')}-${new Date(rec.dataISO).toISOString().slice(0,10)}.pdf`;
+    downloadBlob(blob, filename);
+    toast('PDF gerado.');
+  }catch(e){ console.error(e); toast('Não foi possível gerar o PDF.', true); }
+}
+
+/* ============================================================
+   PDF — PROPOSTA AO FORNECEDOR (comercial)
+============================================================ */
+function gerarPDFProposta(rec){
+  try{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({unit:'pt', format:'a4'});
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 46;
+    let y = 0;
+
+    doc.setFillColor(12,23,64); doc.rect(0,0,pageW,116,'F');
+    doc.setFillColor(255,138,61); doc.rect(0,116,pageW,5,'F');
+    doc.setTextColor(190,205,240); doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
+    doc.text('PROPOSTA DE ANTECIPAÇÃO', margin, 30);
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(23);
+    doc.text(String(rec.fornecedor||''), margin, 60);
+    doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(210,220,245);
+    doc.text('CNPJ: '+(rec.cnpj||'—'), margin, 80);
+    doc.setFontSize(9); doc.setTextColor(170,185,225);
+    doc.text('Plurix · Financeiro', margin, 100);
+
+    y = 150;
+    // hero box
+    doc.setFillColor(255,243,234); doc.setDrawColor(255,216,184);
+    doc.roundedRect(margin, y-24, pageW-margin*2, 56, 8, 8, 'FD');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(164,90,28);
+    doc.text('VOCÊ RECEBE HOJE', margin+16, y-4);
+    doc.setFontSize(22); doc.setTextColor(200,96,15);
+    doc.text(fmtBRL(rec.valorLiquidoTotal), margin+16, y+20);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(164,90,28);
+    doc.text('TAXA MÉDIA', pageW-margin-140, y-4);
+    doc.setFontSize(15); doc.setTextColor(60,60,65);
+    doc.text(fmtPct(rec.taxaMedia)+' a.m.', pageW-margin-140, y+16);
+
+    y += 60;
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(12,23,64);
+    doc.text('Títulos incluídos nesta proposta', margin, y);
+    doc.setDrawColor(230,230,235); doc.line(margin,y+6,pageW-margin,y+6);
+    y += 24;
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(130,130,135);
+    const cols = [margin, margin+52, margin+132, margin+218, margin+282, margin+358];
+    ['Nota','Vencimento','Valor nominal','Prazo','% Proporcional','Valor líquido'].forEach((h,i)=>doc.text(h, cols[i], y));
+    y += 12; doc.setDrawColor(240,240,240); doc.line(margin,y-8,pageW-margin,y-8);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,65);
+    (rec.titulos||[]).forEach(t=>{
+      if (y>600){ doc.addPage(); y=60; }
+      doc.text(String(t.nota||'—'), cols[0], y);
+      doc.text(fmtDateOnly(t.dataVencimento), cols[1], y);
+      doc.text(fmtBRL(t.valorNominal), cols[2], y);
+      doc.text((t.dias||0)+'d', cols[3], y);
+      doc.text(fmtPct((t.percProporcional||0)*100), cols[4], y);
+      doc.setTextColor(26,138,99); doc.setFont('helvetica','bold');
+      doc.text(fmtBRL(t.valorLiquido), cols[5], y);
+      doc.setTextColor(60,60,65); doc.setFont('helvetica','normal');
+      y += 16;
+    });
+
+    y += 26;
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(12,23,64);
+    doc.text('Por que antecipar com a Plurix', margin, y);
+    y += 20;
+    const beneficios = [
+      'Recursos disponíveis rapidamente, sem burocracia bancária tradicional.',
+      'Negociação direta com quem originou a nota, com condições transparentes.',
+      'Sem necessidade de garantias ou cadastro em instituições financeiras externas.',
+      'Você decide quais títulos antecipar e mantém o restante no prazo normal.'
+    ];
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(70,70,75);
+    beneficios.forEach(b=>{
+      const lines = doc.splitTextToSize('•  '+b, pageW-margin*2-10);
+      doc.text(lines, margin, y);
+      y += lines.length*13 + 4;
+    });
+
+    doc.setFontSize(8); doc.setTextColor(150,150,155);
+    doc.text('Proposta sujeita à confirmação e formalização. Valores podem variar conforme a data efetiva de pagamento.', margin, 800);
+    doc.text('Documento gerado pelo Financeiro — Plurix.', margin, 812);
+
+    const blob = doc.output('blob');
+    const filename = `proposta-${(rec.fornecedor||'fornecedor').toLowerCase().replace(/\s+/g,'-')}-${new Date(rec.dataISO).toISOString().slice(0,10)}.pdf`;
+    downloadBlob(blob, filename);
+    toast('Proposta gerada.');
+  }catch(e){ console.error(e); toast('Não foi possível gerar o PDF.', true); }
+}
+
+window.addEventListener('error', function(e){
+  console.error('Erro não tratado:', e.error || e.message);
+  const loginScreen = document.getElementById('loginScreen');
+  if (loginScreen && loginScreen.style.display !== 'none'){
+    showLoginError('Erro ao carregar o app: ' + (e.message || 'erro desconhecido') + '. Recarregue a página.');
+    const btn = document.getElementById('loginBtn');
+    if (btn){ btn.disabled = false; btn.textContent = 'Entrar'; }
+  }
+});
+
+/* ============================================================
+   BOOT
+============================================================ */
+document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
+document.getElementById('themeToggleBtnLogin').addEventListener('click', toggleTheme);
+initTheme();
+initStorage();
+
+})();
+</script>
+</body>
+</html>
